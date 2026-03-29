@@ -1,0 +1,25 @@
+{
+  "name": "my-columns",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "db:push": "turbo db:push --filter=@my-columns/web",
+    "db:studio": "turbo db:studio --filter=@my-columns/web"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  },
+  "packageManager": "pnpm@10.6.2",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "core-js",
+      "esbuild",
+      "sharp",
+      "unrs-resolver",
+      "@swc/core"
+    ]
+  }
+}

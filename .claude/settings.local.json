@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:dribbble.com)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm add:*)",
+      "Bash(npx shadcn@latest add popover -y)",
+      "Bash(identify /Users/charlesassuncao/Projects/my-columns/apps/web/public/logo.png)",
+      "Bash(python3 -c \":*)"
+    ]
+  }
+}
