@@ -79,7 +79,7 @@ export function Header() {
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl shadow-card overflow-hidden">
                   <img
-                    src="/logo.png"
+                    src="/logo-small.png"
                     alt=""
                     className="w-full h-full object-cover"
                   />

@@ -69,7 +69,7 @@ export default function LoginPage() {
         <div className="relative z-10">
           <div className="w-20 h-20 rounded-3xl ring-1 ring-white/[0.08] mb-8 overflow-hidden">
             <img
-              src="/logo.png"
+              src="/logo-small.png"
               alt="Labor, Força e Virtude"
               className="w-full h-full object-cover"
             />
@@ -99,7 +99,7 @@ export default function LoginPage() {
           <div className="lg:hidden text-center mb-10">
             <div className="w-16 h-16 rounded-2xl mx-auto mb-4 shadow-elevated overflow-hidden">
               <img
-                src="/logo.png"
+                src="/logo-small.png"
                 alt=""
                 className="w-full h-full object-cover"
               />

@@ -30,7 +30,7 @@ async function LojaPage({
           <div className="flex items-center gap-4">
             <div className="w-14 h-14 rounded-2xl overflow-hidden ring-2 ring-white/20 shrink-0">
               <img
-                src="/logo.png"
+                src="/logo-small.png"
                 alt=""
                 className="w-full h-full object-cover"
               />

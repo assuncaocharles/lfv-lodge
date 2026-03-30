@@ -36,7 +36,7 @@ export function Sidebar() {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl shadow-card overflow-hidden shrink-0">
             <img
-              src="/logo.png"
+              src="/logo-small.png"
               alt="Labor, Força e Virtude"
               className="w-full h-full object-cover"
             />
