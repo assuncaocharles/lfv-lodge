@@ -10,27 +10,36 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // Belt-and-suspenders: check membership here too (withAuth on each page
-  // is the primary gate, but this catches the layout render)
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  try {
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
 
-  if (!session) {
+    if (!session) {
+      console.log("[layout] No session → /login");
+      redirect("/login");
+    }
+
+    const [membership] = await db
+      .select()
+      .from(member)
+      .where(eq(member.userId, session.user.id))
+      .limit(1);
+
+    if (!membership) {
+      console.log("[layout] No membership for:", session.user.email, "→ /solicitar-acesso");
+      redirect("/solicitar-acesso");
+    }
+
+    console.log("[layout] PASS for:", session.user.email);
+  } catch (e) {
+    // redirect() throws a special NEXT_REDIRECT error — rethrow it
+    if (e && typeof e === "object" && "digest" in e) {
+      throw e;
+    }
+    console.error("[layout] Error in auth check:", e);
     redirect("/login");
   }
 
-  const [membership] = await db
-    .select()
-    .from(member)
-    .where(eq(member.userId, session.user.id))
-    .limit(1);
-
-  if (!membership) {
-    redirect("/solicitar-acesso");
-  }
-
-  // The shell (Sidebar/Header) is rendered by withAuth, not here.
-  // This layout just ensures non-members can't reach any (app) page.
   return <>{children}</>;
 }

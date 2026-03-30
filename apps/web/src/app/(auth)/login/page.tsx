@@ -41,7 +41,8 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-      router.push("/");
+      // Hard navigation to clear any stale RSC cache from previous sessions
+      window.location.href = "/";
     } catch {
       setError("Erro ao fazer login. Tente novamente.");
       setIsLoading(false);
@@ -70,8 +71,8 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-      // Account created — redirect to request access
-      router.push("/solicitar-acesso");
+      // Account created — redirect to request access (hard nav to clear cache)
+      window.location.href = "/solicitar-acesso";
     } catch {
       setError("Erro ao criar conta. Tente novamente.");
       setIsLoading(false);

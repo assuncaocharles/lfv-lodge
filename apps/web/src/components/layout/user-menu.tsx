@@ -27,7 +27,8 @@ export function UserMenu() {
 
   async function handleSignOut() {
     await authClient.signOut();
-    router.push("/login");
+    // Hard navigation clears the RSC client cache
+    window.location.href = "/login";
   }
 
   return (

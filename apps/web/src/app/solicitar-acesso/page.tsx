@@ -45,7 +45,7 @@ export default function SolicitarAcessoPage() {
 
   async function handleSignOut() {
     await authClient.signOut();
-    router.push("/login");
+    window.location.href = "/login";
   }
 
   if (isPending) {
