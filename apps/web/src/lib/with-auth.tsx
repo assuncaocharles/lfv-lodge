@@ -38,69 +38,78 @@ export function withAuth<TProps extends object>(
   options?: WithAuthOptions,
 ) {
   return async function AuthenticatedPage(props: TProps) {
+    // Step 1: Check authentication
     const result = await getAuthenticatedUser();
     if (!result) redirect("/login");
 
     const reqHeaders = await headers();
 
-    // Auto-set active org if not set (single-tenant: pick the first org)
+    // Step 2: ALWAYS check membership in DB — regardless of orgId in session
+    const [membership] = await db
+      .select()
+      .from(member)
+      .where(eq(member.userId, result.user.id))
+      .limit(1);
+
+    if (!membership) {
+      // User is authenticated but NOT authorized (no org membership)
+      redirect("/solicitar-acesso");
+    }
+
+    // Step 3: Ensure active org is set
     if (!result.orgId) {
-      const [membership] = await db
-        .select()
-        .from(member)
-        .where(eq(member.userId, result.user.id))
-        .limit(1);
-
-      if (!membership) redirect("/solicitar-acesso");
-
       await auth.api.setActiveOrganization({
         headers: reqHeaders,
         body: { organizationId: membership.organizationId },
       });
-
       redirect("/");
     }
 
-    const activeMember = await auth.api.getActiveMember({
-      headers: reqHeaders,
-    });
-
-    if (!activeMember) {
-      redirect("/solicitar-acesso");
-    }
-
-    if (options?.roles && !options.roles.includes(activeMember.role as Role)) {
+    // Step 4: Verify the active org matches the membership
+    if (result.orgId !== membership.organizationId) {
+      await auth.api.setActiveOrganization({
+        headers: reqHeaders,
+        body: { organizationId: membership.organizationId },
+      });
       redirect("/");
     }
 
-    // Fetch member profile for grau
+    // Step 5: Check role permissions
+    if (
+      options?.roles &&
+      !options.roles.includes(membership.role as Role)
+    ) {
+      redirect("/");
+    }
+
+    // Step 6: Fetch member profile for grau
     const [profile] = await db
       .select({ id: memberProfile.id, grau: memberProfile.grau })
       .from(memberProfile)
       .where(
         and(
           eq(memberProfile.userId, result.user.id),
-          eq(memberProfile.organizationId, result.orgId),
+          eq(memberProfile.organizationId, membership.organizationId),
         ),
       )
       .limit(1);
 
     const isAdmin =
-      activeMember.role === "owner" || activeMember.role === "admin";
+      membership.role === "owner" || membership.role === "admin";
 
     const memberInfo: MemberInfo = {
       grau: (profile?.grau as "1" | "2" | "3") ?? "1",
-      role: activeMember.role,
+      role: membership.role,
       profileId: profile?.id ?? null,
       isAdmin,
     };
 
-    // Render the dashboard shell + page content
-    // Shell is here (not in layout) so it only renders AFTER auth passes
+    // Step 7: Render dashboard shell + page content
+    // Shell is here (not in layout) so it ONLY renders after auth passes
     const pageContent = await Page({
       ...props,
       user: result.user,
-      orgId: result.orgId,
+      orgId: membership.organizationId,
       member: memberInfo,
     });
 
