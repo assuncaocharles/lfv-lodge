@@ -6,6 +6,8 @@ import { db } from "@/db";
 import { member } from "@/db/auth-schema";
 import { memberProfile } from "@/db/app-schema";
 import { eq, and } from "drizzle-orm";
+import { Sidebar } from "@/components/layout/sidebar";
+import { Header } from "@/components/layout/header";
 
 type AuthResult = NonNullable<
   Awaited<ReturnType<typeof getAuthenticatedUser>>
@@ -64,7 +66,7 @@ export function withAuth<TProps extends object>(
     });
 
     if (!activeMember) {
-      redirect("/login");
+      redirect("/solicitar-acesso");
     }
 
     if (options?.roles && !options.roles.includes(activeMember.role as Role)) {
@@ -93,11 +95,25 @@ export function withAuth<TProps extends object>(
       isAdmin,
     };
 
-    return Page({
+    // Render the dashboard shell + page content
+    // Shell is here (not in layout) so it only renders AFTER auth passes
+    const pageContent = await Page({
       ...props,
       user: result.user,
       orgId: result.orgId,
       member: memberInfo,
     });
+
+    return (
+      <div className="flex h-full">
+        <Sidebar />
+        <div className="flex flex-1 flex-col min-w-0">
+          <Header />
+          <main className="flex-1 overflow-auto p-5 md:p-8 bg-[var(--app-bg)]">
+            {pageContent}
+          </main>
+        </div>
+      </div>
+    );
   };
 }
