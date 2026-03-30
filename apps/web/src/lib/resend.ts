@@ -16,7 +16,7 @@ export async function sendInviteEmail(params: {
   inviteUrl: string;
 }) {
   await getResend().emails.send({
-    from: `Minha Loja <noreply@${process.env.BETTER_AUTH_URL?.replace("https://", "").replace("http://", "") || "localhost"}>`,
+    from: "LFV 003 <onboarding@resend.dev>",
     to: params.to,
     subject: `Voce foi convidado para ${params.lojaName}`,
     react: InviteEmail({
@@ -36,7 +36,7 @@ export async function sendWelcomeEmail(params: {
   loginUrl: string;
 }) {
   await getResend().emails.send({
-    from: `Minha Loja <noreply@${process.env.BETTER_AUTH_URL?.replace("https://", "").replace("http://", "") || "localhost"}>`,
+    from: "LFV 003 <onboarding@resend.dev>",
     to: params.to,
     subject: `Bem-vindo à ${params.lojaName}`,
     react: WelcomeEmail({
