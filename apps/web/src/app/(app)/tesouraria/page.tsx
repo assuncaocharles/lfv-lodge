@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMember } from "@/hooks/use-member";
 import { useFetch } from "@/hooks/use-fetch";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { cn } from "@/lib/utils";
 import { SaldoCard } from "@/components/tesouraria/saldo-card";
 import { MesNavigator } from "@/components/tesouraria/mes-navigator";
 import {
@@ -198,44 +198,47 @@ export default function TesourariaPage() {
         />
       )}
 
-      {/* Tabs + Month Navigator */}
-      <Tabs
-        value={caixa}
-        onValueChange={(v) => setCaixa(v as Caixa)}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <TabsList>
-            {(["loja", "hospitalaria", "mensalidades"] as const).map((c) => (
-              <TabsTrigger key={c} value={c}>
-                {CAIXA_LABELS[c]}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          <MesNavigator mes={mes} onChange={setMes} />
+      {/* Caixa Toggle + Month Navigator */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex rounded-xl bg-neutral-100 dark:bg-white/5 p-1">
+          {(["loja", "hospitalaria", "mensalidades"] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => setCaixa(c)}
+              className={cn(
+                "rounded-lg px-3.5 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-200",
+                caixa === c
+                  ? "bg-white text-neutral-900 shadow-sm dark:bg-white/10 dark:text-white"
+                  : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400",
+              )}
+            >
+              {CAIXA_LABELS[c]}
+            </button>
+          ))}
         </div>
+        <MesNavigator mes={mes} onChange={setMes} />
+      </div>
 
-        {(["loja", "hospitalaria", "mensalidades"] as const).map((c) => (
-          <TabsContent key={c} value={c} className="space-y-6 mt-4">
-            {/* Mensalidades status grid */}
-            {c === "mensalidades" && mensalidadesStatus && (
-              <MensalidadesStatus
-                status={mensalidadesStatus}
-                onRegistrar={handleRegistrarMensalidade}
-              />
-            )}
+      {/* Content */}
+      <div className="space-y-6">
+        {/* Mensalidades status grid */}
+        {caixa === "mensalidades" && mensalidadesStatus && (
+          <MensalidadesStatus
+            status={mensalidadesStatus}
+            onRegistrar={handleRegistrarMensalidade}
+          />
+        )}
 
-            {/* Lancamentos table */}
-            <LancamentosTable
-              lancamentos={lancamentos ?? []}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-            />
+        {/* Lancamentos table */}
+        <LancamentosTable
+          lancamentos={lancamentos ?? []}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+        />
 
-            {/* Resumo */}
-            {resumo && <ResumoFinanceiro resumo={resumo.resumo} />}
-          </TabsContent>
-        ))}
-      </Tabs>
+        {/* Resumo */}
+        {resumo && <ResumoFinanceiro resumo={resumo.resumo} />}
+      </div>
 
       {/* Form Dialog */}
       <LancamentoForm
