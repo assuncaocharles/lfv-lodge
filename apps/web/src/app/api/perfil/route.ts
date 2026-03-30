@@ -1,28 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { eq } from "drizzle-orm";
 import { getAuthenticatedUser, getActiveRole } from "@/lib/api-utils";
 import { getMemberByUserId, updateMemberProfile } from "@/data/membros";
+import { auth } from "@/lib/auth";
+import { db } from "@/db";
+import { member } from "@/db/auth-schema";
 
 export async function GET() {
-  const auth = await getAuthenticatedUser();
-  if (!auth) {
+  const result = await getAuthenticatedUser();
+  if (!result) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  // If no orgId, user is authenticated but not a member
-  if (!auth.orgId) {
-    return NextResponse.json({
-      user: {
-        id: auth.user.id,
-        name: auth.user.name,
-        email: auth.user.email,
-        image: auth.user.image ?? null,
-      },
-      member: null,
+  let orgId = result.orgId;
+
+  // If no active org, try to find and set one
+  if (!orgId) {
+    const [membership] = await db
+      .select()
+      .from(member)
+      .where(eq(member.userId, result.user.id))
+      .limit(1);
+
+    if (!membership) {
+      // Authenticated but not a member of any org
+      return NextResponse.json({
+        user: {
+          id: result.user.id,
+          name: result.user.name,
+          email: result.user.email,
+          image: result.user.image ?? null,
+        },
+        member: null,
+      });
+    }
+
+    // Auto-set the active organization
+    await auth.api.setActiveOrganization({
+      headers: await headers(),
+      body: { organizationId: membership.organizationId },
     });
+    orgId = membership.organizationId;
   }
 
-  const [member, role] = await Promise.all([
-    getMemberByUserId(auth.orgId, auth.user.id),
+  const [memberProfile, role] = await Promise.all([
+    getMemberByUserId(orgId, result.user.id),
     getActiveRole(),
   ]);
 
@@ -30,38 +53,38 @@ export async function GET() {
 
   return NextResponse.json({
     user: {
-      id: auth.user.id,
-      name: auth.user.name,
-      email: auth.user.email,
-      image: auth.user.image ?? null,
+      id: result.user.id,
+      name: result.user.name,
+      email: result.user.email,
+      image: result.user.image ?? null,
     },
-    member: member
+    member: memberProfile
       ? {
-          profileId: member.id,
-          grau: member.grau,
+          profileId: memberProfile.id,
+          grau: memberProfile.grau,
           role: role ?? "member",
           isAdmin,
-          telefone: member.telefone,
-          cargo: member.cargo,
+          telefone: memberProfile.telefone,
+          cargo: memberProfile.cargo,
         }
       : null,
   });
 }
 
 export async function PUT(req: NextRequest) {
-  const auth = await getAuthenticatedUser();
-  if (!auth || !auth.orgId) {
+  const result = await getAuthenticatedUser();
+  if (!result || !result.orgId) {
     return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
-  const member = await getMemberByUserId(auth.orgId, auth.user.id);
-  if (!member) {
+  const memberProfile = await getMemberByUserId(result.orgId, result.user.id);
+  if (!memberProfile) {
     return NextResponse.json({ error: "Perfil não encontrado" }, { status: 404 });
   }
 
   const body = await req.json();
 
-  const updated = await updateMemberProfile(member.id, {
+  const updated = await updateMemberProfile(memberProfile.id, {
     telefone: body.telefone ?? null,
   });
 
