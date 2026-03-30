@@ -19,16 +19,18 @@ function getS3Client() {
 
 const bucket = () => process.env.R2_BUCKET_NAME!;
 
-export async function generateUploadUrl(
+export async function uploadFile(
   key: string,
+  body: Buffer,
   contentType: string,
 ) {
   const command = new PutObjectCommand({
     Bucket: bucket(),
     Key: key,
+    Body: body,
     ContentType: contentType,
   });
-  return getSignedUrl(getS3Client(), command, { expiresIn: 3600 });
+  await getS3Client().send(command);
 }
 
 export async function generateDownloadUrl(key: string) {

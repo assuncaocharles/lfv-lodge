@@ -112,23 +112,19 @@ function SubmitDialog({ assignmentId }: { assignmentId: string }) {
     setIsUploading(true);
 
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+      if (comentario) formData.append("comentario", comentario);
+
       const res = await fetch(`/api/trabalhos/${assignmentId}/envio`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nomeArquivo: file.name,
-          mimeType: file.type,
-          tamanho: file.size,
-          comentario: comentario || undefined,
-        }),
+        body: formData,
       });
-      const { uploadUrl } = await res.json();
 
-      await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Erro ao enviar arquivo");
+      }
 
       // Update status to "enviado"
       await fetch(`/api/trabalhos/${assignmentId}`, {

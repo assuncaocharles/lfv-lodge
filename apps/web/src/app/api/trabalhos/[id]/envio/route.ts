@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/api-utils";
 import { getAssignmentById, createSubmission } from "@/data/trabalhos";
-import { generateUploadUrl } from "@/lib/s3";
+import { uploadFile } from "@/lib/s3";
 
 export async function POST(
   req: NextRequest,
@@ -22,21 +22,36 @@ export async function POST(
     return NextResponse.json({ error: "Apenas o membro atribuído pode enviar" }, { status: 403 });
   }
 
-  const body = await req.json();
-  const { nomeArquivo, mimeType, tamanho, comentario } = body;
+  const formData = await req.formData();
+  const file = formData.get("file") as File | null;
+  const comentario = formData.get("comentario") as string | null;
 
-  const storageKey = `envios/${auth.orgId}/${id}/${crypto.randomUUID()}/${nomeArquivo}`;
-  const uploadUrl = await generateUploadUrl(storageKey, mimeType);
+  if (!file) {
+    return NextResponse.json({ error: "Arquivo é obrigatório" }, { status: 400 });
+  }
+
+  const storageKey = `envios/${auth.orgId}/${id}/${crypto.randomUUID()}/${file.name}`;
+
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    await uploadFile(storageKey, buffer, file.type);
+  } catch (err) {
+    console.error("Erro ao enviar para R2:", err);
+    return NextResponse.json(
+      { error: "Erro ao enviar arquivo. Tente novamente." },
+      { status: 500 }
+    );
+  }
 
   const submission = await createSubmission({
     trabalhoId: id,
     userId: auth.user.id,
     storageKey,
-    nomeArquivo,
-    mimeType,
-    tamanho,
-    comentario,
+    nomeArquivo: file.name,
+    mimeType: file.type,
+    tamanho: file.size,
+    comentario: comentario || undefined,
   });
 
-  return NextResponse.json({ submission, uploadUrl }, { status: 201 });
+  return NextResponse.json({ submission }, { status: 201 });
 }

@@ -19,8 +19,15 @@ export async function GET(
   }
 
   if (doc.storageKey) {
-    const downloadUrl = await generateDownloadUrl(doc.storageKey);
-    return NextResponse.redirect(downloadUrl);
+    try {
+      const downloadUrl = await generateDownloadUrl(doc.storageKey);
+      return NextResponse.redirect(downloadUrl);
+    } catch {
+      return NextResponse.json(
+        { error: "Arquivo não encontrado no armazenamento" },
+        { status: 404 }
+      );
+    }
   }
 
   return NextResponse.json(doc);

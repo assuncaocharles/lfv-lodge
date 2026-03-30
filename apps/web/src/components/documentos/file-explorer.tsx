@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, Page, Upload, Plus, Trash } from "iconoir-react";
 import { Button } from "@/components/ui/button";
@@ -356,60 +356,73 @@ function UploadDialog({
   currentFolderGrau: string | null;
 }) {
   const router = useRouter();
-  const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [grauMinimo, setGrauMinimo] = useState("1");
-  const [isUploading, setIsUploading] = useState(false);
+  const [status, setStatus] = useState<
+    "idle" | "uploading" | "success" | "error"
+  >("idle");
+  const [errorMsg, setErrorMsg] = useState("");
 
-  const isBusy = isUploading || isPending;
-
-  // If inside a folder, use the folder's grau
   const inheritedGrau = currentFolderGrau;
+
+  function resetState() {
+    setFile(null);
+    setStatus("idle");
+    setErrorMsg("");
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return;
-    setIsUploading(true);
+
+    setStatus("uploading");
+    setErrorMsg("");
 
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("nome", file.name);
+      formData.append("grauMinimo", inheritedGrau ?? grauMinimo);
+      if (currentFolderId) {
+        formData.append("pastaPaiId", currentFolderId);
+      }
+
       const res = await fetch("/api/documentos/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          nome: file.name,
-          mimeType: file.type,
-          tamanho: file.size,
-          pastaPaiId: currentFolderId,
-          grauMinimo: inheritedGrau ?? grauMinimo,
-        }),
-      });
-      const { uploadUrl } = await res.json();
-
-      await fetch(uploadUrl, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
+        body: formData,
       });
 
-      setIsUploading(false);
-      setFile(null);
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Erro ao enviar arquivo");
+      }
 
-      // Use startTransition to track when refresh actually completes
-      startTransition(() => {
+      setStatus("success");
+
+      // Brief success feedback, then close and refresh
+      setTimeout(() => {
+        setOpen(false);
+        resetState();
         router.refresh();
-      });
-
-      // Wait for the transition to settle, then close
-      await new Promise((r) => setTimeout(r, 1000));
-      setOpen(false);
-    } catch {
-      setIsUploading(false);
+      }, 800);
+    } catch (err) {
+      setStatus("error");
+      setErrorMsg(
+        err instanceof Error ? err.message : "Erro ao enviar arquivo"
+      );
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !isBusy && setOpen(v)}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (status === "uploading") return; // prevent close during upload
+        setOpen(v);
+        if (!v) resetState();
+      }}
+    >
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl transition-all duration-200">
           <Upload className="size-4 mr-1.5" /> Upload
@@ -421,50 +434,113 @@ function UploadDialog({
             Upload de Arquivo
           </DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label className="text-[13px] text-neutral-500">Arquivo</Label>
-            <Input
-              type="file"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              required
-              className="rounded-xl"
-            />
-          </div>
-          {inheritedGrau ? (
-            <p className="text-[12px] text-neutral-400">
-              Grau mínimo herdado da pasta:{" "}
-              <span className="font-medium text-neutral-600">
-                {GRAU_LABELS[inheritedGrau] ?? `Grau ${inheritedGrau}`}
-              </span>
-            </p>
-          ) : (
-            <div className="space-y-2">
-              <Label className="text-[13px] text-neutral-500">
-                Grau Mínimo
-              </Label>
-              <Select value={grauMinimo} onValueChange={setGrauMinimo}>
-                <SelectTrigger className="rounded-xl h-10">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(GRAU_LABELS).map(([v, l]) => (
-                    <SelectItem key={v} value={v}>
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+        {status === "success" ? (
+          <div className="py-6 text-center">
+            <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-3">
+              <svg
+                className="size-6 text-teal-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2.5}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
             </div>
-          )}
-          <Button
-            type="submit"
-            disabled={isBusy || !file}
-            className="w-full rounded-xl h-10 transition-all duration-200"
-          >
-            {isUploading ? "Enviando..." : isPending ? "Atualizando..." : "Enviar"}
-          </Button>
-        </form>
+            <p className="text-[14px] font-semibold text-neutral-900">
+              Arquivo enviado!
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-[13px] text-neutral-500">Arquivo</Label>
+              <Input
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                required
+                disabled={status === "uploading"}
+                className="rounded-xl"
+              />
+            </div>
+            {inheritedGrau ? (
+              <p className="text-[12px] text-neutral-400">
+                Grau mínimo herdado da pasta:{" "}
+                <span className="font-medium text-neutral-600">
+                  {GRAU_LABELS[inheritedGrau] ?? `Grau ${inheritedGrau}`}
+                </span>
+              </p>
+            ) : (
+              <div className="space-y-2">
+                <Label className="text-[13px] text-neutral-500">
+                  Grau Mínimo
+                </Label>
+                <Select
+                  value={grauMinimo}
+                  onValueChange={setGrauMinimo}
+                  disabled={status === "uploading"}
+                >
+                  <SelectTrigger className="rounded-xl h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(GRAU_LABELS).map(([v, l]) => (
+                      <SelectItem key={v} value={v}>
+                        {l}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {status === "error" && (
+              <p className="text-[13px] text-red-500 font-medium">
+                {errorMsg}
+              </p>
+            )}
+
+            <Button
+              type="submit"
+              disabled={status === "uploading" || !file}
+              className="w-full rounded-xl h-10 transition-all duration-200"
+            >
+              {status === "uploading" ? (
+                <span className="flex items-center gap-2">
+                  <svg
+                    className="size-4 animate-spin"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                    />
+                  </svg>
+                  Enviando...
+                </span>
+              ) : status === "error" ? (
+                "Tentar Novamente"
+              ) : (
+                "Enviar"
+              )}
+            </Button>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
