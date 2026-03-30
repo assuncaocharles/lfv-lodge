@@ -28,8 +28,10 @@ export function DeleteMemberButton({
     try {
       await fetch(`/api/membros/${memberId}`, { method: "DELETE" });
       setOpen(false);
-      router.push("/membros");
+      // Revalidate then navigate so the list is fresh
       router.refresh();
+      await new Promise((r) => setTimeout(r, 500));
+      router.push("/membros");
     } finally {
       setDeleting(false);
     }
