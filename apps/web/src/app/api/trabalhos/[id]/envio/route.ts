@@ -1,7 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/api-utils";
-import { getAssignmentById, createSubmission } from "@/data/trabalhos";
+import { getAssignmentById, getSubmissions, createSubmission } from "@/data/trabalhos";
 import { uploadFile } from "@/lib/s3";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const auth = await getAuthenticatedUser();
+  if (!auth || !auth.orgId) {
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  const submissions = await getSubmissions(id);
+  return NextResponse.json(submissions);
+}
 
 export async function POST(
   req: NextRequest,
