@@ -9,17 +9,17 @@ import { Label } from "@/components/ui/label";
 
 export default function SolicitarAcessoPage() {
   const router = useRouter();
-  const { data: session } = authClient.useSession();
+  const { data: session, isPending } = authClient.useSession();
   const [mensagem, setMensagem] = useState("");
   const [status, setStatus] = useState<
     "idle" | "submitting" | "sent" | "already_sent" | "error"
   >("idle");
 
   useEffect(() => {
-    if (!session) {
+    if (!isPending && !session) {
       router.push("/login");
     }
-  }, [session, router]);
+  }, [session, isPending, router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,6 +46,14 @@ export default function SolicitarAcessoPage() {
   async function handleSignOut() {
     await authClient.signOut();
     router.push("/login");
+  }
+
+  if (isPending) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-[var(--app-bg)]">
+        <div className="w-8 h-8 border-2 border-neutral-300 border-t-neutral-900 rounded-full animate-spin" />
+      </div>
+    );
   }
 
   if (!session) return null;

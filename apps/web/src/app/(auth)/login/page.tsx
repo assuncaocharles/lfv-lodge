@@ -12,8 +12,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [mode, setMode] = useState<"login" | "signup">("login");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -46,17 +48,47 @@ export default function LoginPage() {
     }
   }
 
+  async function handleSignup(e: React.FormEvent) {
+    e.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    if (password.length < 6) {
+      setError("A senha deve ter pelo menos 6 caracteres.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await authClient.signUp.email({
+        name,
+        email,
+        password,
+      });
+      if (error) {
+        setError(error.message ?? "Erro ao criar conta.");
+        setIsLoading(false);
+        return;
+      }
+      // Account created — redirect to request access
+      router.push("/solicitar-acesso");
+    } catch {
+      setError("Erro ao criar conta. Tente novamente.");
+      setIsLoading(false);
+    }
+  }
+
+  const isSignup = mode === "signup";
+
   return (
     <div className="min-h-dvh flex">
       {/* Left — brand panel */}
       <div className="hidden lg:flex lg:w-[48%] relative bg-navy-900 flex-col justify-between p-12 overflow-hidden">
-        {/* Decorative elements */}
         <div className="absolute inset-0 bg-gradient-to-br from-navy-800/50 via-transparent to-navy-950/80" />
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-gold-500/[0.04] blur-3xl" />
         <div className="absolute bottom-20 -left-20 w-72 h-72 rounded-full bg-gold-500/[0.03] blur-3xl" />
         <div className="absolute top-1/3 right-1/3 w-48 h-48 rounded-full bg-white/[0.01] blur-2xl" />
 
-        {/* Subtle grid pattern */}
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
@@ -92,7 +124,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Right — login form */}
+      {/* Right — form */}
       <div className="flex-1 flex items-center justify-center p-6 bg-[#F0F2F5]">
         <div className="w-full max-w-sm animate-fade-up">
           {/* Mobile logo */}
@@ -112,10 +144,12 @@ export default function LoginPage() {
           <div className="bg-white rounded-2xl p-8 shadow-card">
             <div className="mb-7">
               <h1 className="font-display text-2xl font-bold text-neutral-900 tracking-tight">
-                Bem-vindo
+                {isSignup ? "Criar Conta" : "Bem-vindo"}
               </h1>
               <p className="text-[13px] text-neutral-500 mt-1">
-                Entre com suas credenciais para acessar
+                {isSignup
+                  ? "Crie sua conta para solicitar acesso"
+                  : "Entre com suas credenciais para acessar"}
               </p>
             </div>
 
@@ -128,7 +162,29 @@ export default function LoginPage() {
               </Alert>
             )}
 
-            <form onSubmit={handleEmailLogin} className="space-y-4">
+            <form
+              onSubmit={isSignup ? handleSignup : handleEmailLogin}
+              className="space-y-4"
+            >
+              {isSignup && (
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="name"
+                    className="text-[13px] font-medium text-neutral-600"
+                  >
+                    Nome completo
+                  </Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Seu nome"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                    className="h-11 rounded-xl bg-neutral-50 border-neutral-200 focus:bg-white transition-colors"
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label
                   htmlFor="email"
@@ -166,9 +222,15 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 disabled={isLoading}
-                className="w-full h-11 rounded-xl font-semibold text-[13px] bg-navy-900 hover:bg-navy-800 transition-all duration-200 cursor-pointer"
+                className="w-full h-11 rounded-xl font-semibold text-[13px] bg-navy-900 hover:bg-navy-800 transition-all duration-200"
               >
-                {isLoading ? "Entrando..." : "Entrar"}
+                {isLoading
+                  ? isSignup
+                    ? "Criando..."
+                    : "Entrando..."
+                  : isSignup
+                    ? "Criar Conta"
+                    : "Entrar"}
               </Button>
             </form>
 
@@ -184,7 +246,7 @@ export default function LoginPage() {
               variant="outline"
               onClick={handleGoogleLogin}
               disabled={isLoading}
-              className="w-full h-11 rounded-xl border-neutral-200 hover:bg-neutral-50 transition-all duration-200 text-[13px] font-medium cursor-pointer"
+              className="w-full h-11 rounded-xl border-neutral-200 hover:bg-neutral-50 transition-all duration-200 text-[13px] font-medium"
             >
               <svg className="mr-2 size-5" viewBox="0 0 24 24">
                 <path
@@ -209,7 +271,33 @@ export default function LoginPage() {
           </div>
 
           <p className="text-center text-[12px] text-neutral-400 mt-5">
-            Acesso restrito a membros convidados
+            {isSignup ? (
+              <>
+                Já tem conta?{" "}
+                <button
+                  onClick={() => {
+                    setMode("login");
+                    setError(null);
+                  }}
+                  className="text-neutral-600 hover:text-neutral-900 font-medium transition-colors"
+                >
+                  Entrar
+                </button>
+              </>
+            ) : (
+              <>
+                Não tem conta?{" "}
+                <button
+                  onClick={() => {
+                    setMode("signup");
+                    setError(null);
+                  }}
+                  className="text-neutral-600 hover:text-neutral-900 font-medium transition-colors"
+                >
+                  Criar conta
+                </button>
+              </>
+            )}
           </p>
         </div>
       </div>
