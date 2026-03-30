@@ -23,7 +23,7 @@ export default function LoginPage() {
     setIsLoading(true);
     setError(null);
     try {
-      await authClient.signIn.social({ provider: "google", callbackURL: "/" });
+      await authClient.signIn.social({ provider: "google", callbackURL: "/auth-redirect" });
     } catch {
       setError("Erro ao fazer login. Tente novamente.");
       setIsLoading(false);
@@ -41,8 +41,8 @@ export default function LoginPage() {
         setIsLoading(false);
         return;
       }
-      // Hard navigation to clear any stale RSC cache from previous sessions
-      window.location.href = "/";
+      // Go through auth-redirect to check membership before entering dashboard
+      window.location.href = "/auth-redirect";
     } catch {
       setError("Erro ao fazer login. Tente novamente.");
       setIsLoading(false);

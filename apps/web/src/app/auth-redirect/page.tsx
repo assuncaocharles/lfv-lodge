@@ -4,12 +4,15 @@ import { getAuthenticatedUser } from "@/lib/api-utils";
 import { db } from "@/db";
 import { member } from "@/db/auth-schema";
 
-export default async function AppLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // Use the same auth check as withAuth for consistency
+/**
+ * Landing page after OAuth/login. Checks membership and redirects:
+ * - Member → / (dashboard)
+ * - Not a member → /solicitar-acesso
+ * - No session → /login
+ *
+ * This avoids redirect chains that cause ERR_FAILED in browsers.
+ */
+export default async function AuthRedirectPage() {
   const result = await getAuthenticatedUser();
 
   if (!result) {
@@ -26,6 +29,5 @@ export default async function AppLayout({
     redirect("/solicitar-acesso");
   }
 
-  // The shell (Sidebar/Header) is rendered by withAuth, not here.
-  return <>{children}</>;
+  redirect("/");
 }
