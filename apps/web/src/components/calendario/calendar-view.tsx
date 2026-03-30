@@ -2,12 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { NavArrowLeft, NavArrowRight, Plus, GoogleCircle } from "iconoir-react";
+import {
+  NavArrowLeft,
+  NavArrowRight,
+  Plus,
+  GoogleCircle,
+  EditPencil,
+  Trash,
+} from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
 import {
   Dialog,
   DialogContent,
@@ -37,14 +43,34 @@ interface Event {
 }
 
 const MESES = [
-  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
 
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 
+function formatTime(dateStr: string): string {
+  return new Date(dateStr).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function toGoogleCalendarDate(dateStr: string): string {
-  return new Date(dateStr).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  return new Date(dateStr)
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace(/\.\d{3}/, "");
 }
 
 function getGoogleCalendarUrl(event: Event): string {
@@ -56,6 +82,16 @@ function getGoogleCalendarUrl(event: Event): string {
   if (event.descricao) params.set("details", event.descricao);
   if (event.local) params.set("location", event.local);
   return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+function toDatetimeLocal(dateStr: string): string {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${y}-${m}-${day}T${h}:${min}`;
 }
 
 export function CalendarView({
@@ -77,13 +113,24 @@ export function CalendarView({
   function navigate(delta: number) {
     let newMonth = month + delta;
     let newYear = year;
-    if (newMonth > 12) { newMonth = 1; newYear++; }
-    if (newMonth < 1) { newMonth = 12; newYear--; }
-    router.push(`/calendario?mes=${newYear}-${String(newMonth).padStart(2, "0")}`);
+    if (newMonth > 12) {
+      newMonth = 1;
+      newYear++;
+    }
+    if (newMonth < 1) {
+      newMonth = 12;
+      newYear--;
+    }
+    router.push(
+      `/calendario?mes=${newYear}-${String(newMonth).padStart(2, "0")}`
+    );
   }
 
   return (
-    <div className="space-y-5 animate-fade-up" style={{ animationFillMode: "both" }}>
+    <div
+      className="space-y-5 animate-fade-up"
+      style={{ animationFillMode: "both" }}
+    >
       {/* Navigation bar */}
       <div className="flex items-center justify-between flex-wrap gap-3 bg-white rounded-2xl shadow-card px-5 py-3.5">
         <div className="flex items-center gap-2">
@@ -115,7 +162,7 @@ export function CalendarView({
                 "rounded-lg px-3.5 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-200",
                 view === "mes"
                   ? "bg-white text-neutral-900 shadow-sm dark:bg-white/10 dark:text-white"
-                  : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200",
+                  : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
               )}
             >
               Mês
@@ -126,7 +173,7 @@ export function CalendarView({
                 "rounded-lg px-3.5 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-200",
                 view === "lista"
                   ? "bg-white text-neutral-900 shadow-sm dark:bg-white/10 dark:text-white"
-                  : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200",
+                  : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400 dark:hover:text-neutral-200"
               )}
             >
               Lista
@@ -137,7 +184,11 @@ export function CalendarView({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <Button variant="outline" size="sm" className="rounded-xl transition-all duration-200 text-[13px] gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl transition-all duration-200 text-[13px] gap-1.5"
+            >
               <GoogleCircle className="size-4" />
               Google Calendar
             </Button>
@@ -149,17 +200,26 @@ export function CalendarView({
       {view === "mes" ? (
         <MonthView events={events} year={year} month={month} />
       ) : (
-        <ListView events={events} />
+        <ListView events={events} isAdmin={isAdmin} />
       )}
     </div>
   );
 }
 
-function MonthView({ events, year, month }: { events: Event[]; year: number; month: number }) {
+function MonthView({
+  events,
+  year,
+  month,
+}: {
+  events: Event[];
+  year: number;
+  month: number;
+}) {
   const firstDay = new Date(year, month - 1, 1).getDay();
   const daysInMonth = new Date(year, month, 0).getDate();
   const today = new Date();
-  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month - 1;
+  const isCurrentMonth =
+    today.getFullYear() === year && today.getMonth() === month - 1;
 
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
@@ -191,7 +251,7 @@ function MonthView({ events, year, month }: { events: Event[]; year: number; mon
               className={cn(
                 "min-h-[96px] border-b border-r border-neutral-100 p-2 transition-all duration-200",
                 day && "hover:bg-neutral-50",
-                !day && "bg-neutral-50/50",
+                !day && "bg-neutral-50/50"
               )}
             >
               {day && (
@@ -201,7 +261,7 @@ function MonthView({ events, year, month }: { events: Event[]; year: number; mon
                       "inline-flex size-7 items-center justify-center rounded-lg text-[13px] font-medium",
                       isToday
                         ? "bg-neutral-900 text-white font-bold dark:bg-white dark:text-neutral-900"
-                        : "text-neutral-600",
+                        : "text-neutral-600"
                     )}
                   >
                     {day}
@@ -211,7 +271,13 @@ function MonthView({ events, year, month }: { events: Event[]; year: number; mon
                       <div
                         key={e.id}
                         className="truncate rounded-md bg-blue-50 px-1.5 py-0.5 text-[10px] text-blue-700 font-medium dark:bg-blue-500/10 dark:text-blue-400"
+                        title={`${e.titulo}${!e.diaInteiro ? ` · ${formatTime(e.dataInicio)}` : ""}`}
                       >
+                        {!e.diaInteiro && (
+                          <span className="text-blue-500 dark:text-blue-300 mr-0.5">
+                            {formatTime(e.dataInicio)}
+                          </span>
+                        )}
                         {e.titulo}
                       </div>
                     ))}
@@ -231,7 +297,21 @@ function MonthView({ events, year, month }: { events: Event[]; year: number; mon
   );
 }
 
-function ListView({ events }: { events: Event[] }) {
+function ListView({
+  events,
+  isAdmin,
+}: {
+  events: Event[];
+  isAdmin: boolean;
+}) {
+  const router = useRouter();
+
+  async function handleDelete(id: string) {
+    await fetch(`/api/eventos/${id}`, { method: "DELETE" });
+    await new Promise((r) => setTimeout(r, 500));
+    router.refresh();
+  }
+
   if (events.length === 0) {
     return (
       <div className="rounded-2xl bg-white shadow-card p-12 text-center text-[13px] text-neutral-500">
@@ -250,12 +330,14 @@ function ListView({ events }: { events: Event[] }) {
             className={cn(
               "flex gap-4 rounded-xl bg-white shadow-card p-4",
               "transition-all duration-200 hover:shadow-card-hover hover:-translate-y-px",
-              `animate-fade-up stagger-${Math.min(i + 1, 6)}`,
+              `animate-fade-up stagger-${Math.min(i + 1, 6)}`
             )}
             style={{ animationFillMode: "both" }}
           >
             <div className="text-center shrink-0 w-14">
-              <div className="text-2xl font-bold font-display text-neutral-900 dark:text-white">{date.getDate()}</div>
+              <div className="text-2xl font-bold font-display text-neutral-900 dark:text-white">
+                {date.getDate()}
+              </div>
               <div className="text-[10px] text-neutral-400 uppercase tracking-wider font-medium">
                 {date.toLocaleDateString("pt-BR", { weekday: "short" })}
               </div>
@@ -269,34 +351,245 @@ function ListView({ events }: { events: Event[] }) {
               )}
               {!event.diaInteiro && (
                 <p className="text-[13px] text-neutral-400">
-                  {date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  {event.dataFim && ` — ${new Date(event.dataFim).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`}
+                  {formatTime(event.dataInicio)}
+                  {event.dataFim && ` — ${formatTime(event.dataFim)}`}
                 </p>
               )}
               {event.descricao && (
-                <p className="text-[13px] text-neutral-500 mt-1 line-clamp-2">{event.descricao}</p>
+                <p className="text-[13px] text-neutral-500 mt-1 line-clamp-2">
+                  {event.descricao}
+                </p>
               )}
             </div>
-            {/* Google Calendar export */}
-            <a
-              href={getGoogleCalendarUrl(event)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="shrink-0 self-center"
-              title="Adicionar ao Google Calendar"
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8 rounded-xl hover:bg-gold-50 hover:text-gold-600 transition-all duration-200"
+            <div className="flex items-center gap-1 shrink-0">
+              {isAdmin && (
+                <>
+                  <EditEventDialog event={event} />
+                  <DeleteEventButton
+                    eventId={event.id}
+                    eventTitle={event.titulo}
+                    onDelete={() => handleDelete(event.id)}
+                  />
+                </>
+              )}
+              <a
+                href={getGoogleCalendarUrl(event)}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Adicionar ao Google Calendar"
               >
-                <GoogleCircle className="size-4" />
-              </Button>
-            </a>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 rounded-xl hover:bg-neutral-100 transition-all duration-200"
+                >
+                  <GoogleCircle className="size-4" />
+                </Button>
+              </a>
+            </div>
           </div>
         );
       })}
     </div>
+  );
+}
+
+function DeleteEventButton({
+  eventId,
+  eventTitle,
+  onDelete,
+}: {
+  eventId: string;
+  eventTitle: string;
+  onDelete: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleConfirm() {
+    setDeleting(true);
+    await onDelete();
+    setOpen(false);
+    setDeleting(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
+        >
+          <Trash className="size-4" strokeWidth={1.7} />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-lg font-bold tracking-tight">
+            Excluir Evento
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-[13px] text-neutral-500">
+          Tem certeza que deseja excluir <strong>{eventTitle}</strong>? Esta ação
+          não pode ser desfeita.
+        </p>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            className="rounded-xl text-[13px]"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={deleting}
+            className="rounded-xl text-[13px]"
+          >
+            {deleting ? "Excluindo..." : "Excluir"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditEventDialog({ event }: { event: Event }) {
+  const router = useRouter();
+  const [open, setOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      await fetch(`/api/eventos/${event.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          titulo: form.get("titulo"),
+          descricao: form.get("descricao") || null,
+          local: form.get("local") || null,
+          dataInicio: form.get("dataInicio"),
+          dataFim: form.get("dataFim") || null,
+          grauMinimo: form.get("grauMinimo"),
+        }),
+      });
+      setOpen(false);
+      await new Promise((r) => setTimeout(r, 500));
+      router.refresh();
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-8 rounded-xl text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-all duration-200"
+        >
+          <EditPencil className="size-4" strokeWidth={1.7} />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-xl tracking-tight text-neutral-900">
+            Editar Evento
+          </DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Título
+            </Label>
+            <Input
+              name="titulo"
+              defaultValue={event.titulo}
+              required
+              className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Descrição
+            </Label>
+            <Textarea
+              name="descricao"
+              defaultValue={event.descricao ?? ""}
+              rows={2}
+              className="rounded-xl bg-neutral-50 border-neutral-200"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Local
+            </Label>
+            <Input
+              name="local"
+              defaultValue={event.local ?? ""}
+              className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label className="text-[13px] text-neutral-500 font-medium">
+                Início
+              </Label>
+              <Input
+                name="dataInicio"
+                type="datetime-local"
+                defaultValue={toDatetimeLocal(event.dataInicio)}
+                required
+                className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[13px] text-neutral-500 font-medium">
+                Fim
+              </Label>
+              <Input
+                name="dataFim"
+                type="datetime-local"
+                defaultValue={
+                  event.dataFim ? toDatetimeLocal(event.dataFim) : ""
+                }
+                className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Grau Mínimo
+            </Label>
+            <Select name="grauMinimo" defaultValue={event.grauMinimo}>
+              <SelectTrigger className="rounded-xl bg-neutral-50 border-neutral-200 h-10">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(GRAU_LABELS).map(([v, l]) => (
+                  <SelectItem key={v} value={v}>
+                    {l}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full rounded-xl h-10 transition-all duration-200"
+          >
+            {isSubmitting ? "Salvando..." : "Salvar Alterações"}
+          </Button>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -323,6 +616,7 @@ function NewEventDialog() {
         }),
       });
       setOpen(false);
+      await new Promise((r) => setTimeout(r, 500));
       router.refresh();
     } finally {
       setIsSubmitting(false);
@@ -344,36 +638,70 @@ function NewEventDialog() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-[13px] text-neutral-500 font-medium">Título</Label>
-            <Input name="titulo" required className="rounded-xl bg-neutral-50 border-neutral-200 h-10" />
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Título
+            </Label>
+            <Input
+              name="titulo"
+              required
+              className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+            />
           </div>
           <div className="space-y-2">
-            <Label className="text-[13px] text-neutral-500 font-medium">Descrição</Label>
-            <Textarea name="descricao" rows={2} className="rounded-xl bg-neutral-50 border-neutral-200" />
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Descrição
+            </Label>
+            <Textarea
+              name="descricao"
+              rows={2}
+              className="rounded-xl bg-neutral-50 border-neutral-200"
+            />
           </div>
           <div className="space-y-2">
-            <Label className="text-[13px] text-neutral-500 font-medium">Local</Label>
-            <Input name="local" className="rounded-xl bg-neutral-50 border-neutral-200 h-10" />
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Local
+            </Label>
+            <Input
+              name="local"
+              className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+            />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label className="text-[13px] text-neutral-500 font-medium">Início</Label>
-              <Input name="dataInicio" type="datetime-local" required className="rounded-xl bg-neutral-50 border-neutral-200 h-10" />
+              <Label className="text-[13px] text-neutral-500 font-medium">
+                Início
+              </Label>
+              <Input
+                name="dataInicio"
+                type="datetime-local"
+                required
+                className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+              />
             </div>
             <div className="space-y-2">
-              <Label className="text-[13px] text-neutral-500 font-medium">Fim</Label>
-              <Input name="dataFim" type="datetime-local" className="rounded-xl bg-neutral-50 border-neutral-200 h-10" />
+              <Label className="text-[13px] text-neutral-500 font-medium">
+                Fim
+              </Label>
+              <Input
+                name="dataFim"
+                type="datetime-local"
+                className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
+              />
             </div>
           </div>
           <div className="space-y-2">
-            <Label className="text-[13px] text-neutral-500 font-medium">Grau Mínimo</Label>
+            <Label className="text-[13px] text-neutral-500 font-medium">
+              Grau Mínimo
+            </Label>
             <Select name="grauMinimo" defaultValue="1">
               <SelectTrigger className="rounded-xl bg-neutral-50 border-neutral-200 h-10">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(GRAU_LABELS).map(([v, l]) => (
-                  <SelectItem key={v} value={v}>{l}</SelectItem>
+                  <SelectItem key={v} value={v}>
+                    {l}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
