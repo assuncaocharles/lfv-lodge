@@ -1,4 +1,4 @@
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
@@ -27,9 +27,23 @@ export default async function AppLayout({
     .where(eq(member.userId, session.user.id))
     .limit(1);
 
-  // No membership → request access
+  // No membership → set cookie so middleware blocks future requests + redirect
   if (!membership) {
+    const cookieStore = await cookies();
+    cookieStore.set("membership-status", "none", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 5, // 5 minutes — re-checked after expiry
+      path: "/",
+    });
     redirect("/solicitar-acesso");
+  }
+
+  // Has membership — clear the blocking cookie if it exists
+  const cookieStore = await cookies();
+  if (cookieStore.get("membership-status")?.value === "none") {
+    cookieStore.delete("membership-status");
   }
 
   // Set active org if not set
