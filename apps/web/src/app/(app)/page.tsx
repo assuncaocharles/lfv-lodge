@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   Group,
@@ -10,11 +12,8 @@ import {
   Clock,
   MapPin,
 } from "iconoir-react";
-import { withAuth } from "@/lib/with-auth";
-import { getOrgMembers } from "@/data/membros";
-import { getUpcomingEvents } from "@/data/eventos";
-import { getUnreadCount } from "@/data/notificacoes";
-import { getAssignments } from "@/data/trabalhos";
+import { useMember } from "@/hooks/use-member";
+import { useFetch } from "@/hooks/use-fetch";
 
 const quickLinks = [
   {
@@ -43,56 +42,97 @@ const quickLinks = [
   },
 ];
 
-async function DashboardPage({
-  user,
-  orgId,
-  member,
-}: {
-  user: { id: string; name: string };
-  orgId: string;
-  member: { grau: string; role: string };
-}) {
+interface Event {
+  id: string;
+  titulo: string;
+  dataInicio: string;
+  diaInteiro: boolean;
+  local?: string | null;
+}
+
+interface DashboardData {
+  stats: {
+    activeMembers: number;
+    upcomingEvents: number;
+    unreadNotifications: number;
+    pendingAssignments: number;
+  };
+  events: Event[];
+}
+
+export default function DashboardPage() {
+  const { user } = useMember();
+  const { data, error, isLoading } = useFetch<DashboardData>("/api/dashboard");
+
   const firstName = user.name?.split(" ")[0];
 
-  const [members, events, unreadCount, assignments] = await Promise.all([
-    getOrgMembers(orgId),
-    getUpcomingEvents(orgId, member.grau as "1" | "2" | "3", 4),
-    getUnreadCount(orgId, user.id, member.grau, member.role),
-    getAssignments(orgId, user.id),
-  ]);
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl space-y-8">
+        <div className="animate-pulse space-y-8">
+          <div>
+            <div className="h-4 w-32 bg-neutral-200 rounded mb-2" />
+            <div className="h-8 w-48 bg-neutral-200 rounded" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl p-5 shadow-card h-28" />
+            ))}
+          </div>
+          <div className="grid gap-6 lg:grid-cols-5">
+            <div className="lg:col-span-3 bg-white rounded-2xl shadow-card h-64" />
+            <div className="lg:col-span-2 space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl p-4 shadow-card h-16" />
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
-  const activeMembers = members.filter((m) => m.ativo);
-  const pendingAssignments = assignments.filter(
-    (a) => a.status === "pendente" || a.status === "em_andamento"
-  );
+  if (error) {
+    return (
+      <div className="max-w-6xl">
+        <div className="bg-red-50 text-red-600 rounded-2xl p-6 text-[13px]">
+          Erro ao carregar o painel: {error.message}
+        </div>
+      </div>
+    );
+  }
 
-  const stats = [
+  if (!data) return null;
+
+  const { stats, events } = data;
+
+  const statCards = [
     {
       label: "Membros Ativos",
-      value: activeMembers.length,
+      value: stats.activeMembers,
       icon: Group,
       href: "/membros",
       accent: "bg-blue-500/10 text-blue-600",
     },
     {
       label: "Próximos Eventos",
-      value: events.length,
+      value: stats.upcomingEvents,
       icon: Calendar,
       href: "/calendario",
       accent: "bg-teal-500/10 text-teal-600",
     },
     {
       label: "Notificações",
-      value: unreadCount,
-      suffix: unreadCount === 1 ? "não lida" : "não lidas",
+      value: stats.unreadNotifications,
+      suffix: stats.unreadNotifications === 1 ? "não lida" : "não lidas",
       icon: Bell,
       href: "/notificacoes",
       accent: "bg-gold-500/10 text-gold-600",
     },
     {
       label: "Trabalhos",
-      value: pendingAssignments.length,
-      suffix: pendingAssignments.length === 1 ? "pendente" : "pendentes",
+      value: stats.pendingAssignments,
+      suffix: stats.pendingAssignments === 1 ? "pendente" : "pendentes",
       icon: TaskList,
       href: "/trabalhos",
       accent: "bg-violet-500/10 text-violet-600",
@@ -113,7 +153,7 @@ async function DashboardPage({
 
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map(({ label, value, suffix, icon: Icon, href, accent }, i) => (
+        {statCards.map(({ label, value, suffix, icon: Icon, href, accent }, i) => (
           <Link
             key={href}
             href={href}
@@ -165,7 +205,7 @@ async function DashboardPage({
             </div>
           ) : (
             <div className="px-3 pb-3">
-              {events.map((event, i) => {
+              {events.map((event) => {
                 const date = new Date(event.dataInicio);
                 const day = date.getDate().toString().padStart(2, "0");
                 const month = date
@@ -257,5 +297,3 @@ async function DashboardPage({
     </div>
   );
 }
-
-export default withAuth(DashboardPage);

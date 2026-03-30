@@ -1,17 +1,43 @@
-import { withAuth } from "@/lib/with-auth";
-import { getLojaInfo } from "@/data/loja";
+"use client";
+
+import { useMember } from "@/hooks/use-member";
+import { useFetch } from "@/hooks/use-fetch";
 import { LodgeInfoForm } from "@/components/loja/lodge-info-form";
 
-async function LojaPage({
-  user,
-  orgId,
-  member,
-}: {
-  user: { name: string };
-  orgId: string;
-  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
-}) {
-  const info = await getLojaInfo(orgId);
+interface LojaInfo {
+  nomeCompleto?: string | null;
+  numero?: string | null;
+  oriente?: string | null;
+  potencia?: string | null;
+  endereco?: string | null;
+  cep?: string | null;
+  cidade?: string | null;
+  estado?: string | null;
+  telefone?: string | null;
+  email?: string | null;
+}
+
+export default function LojaPage() {
+  const { member } = useMember();
+  const { data: info, isLoading } = useFetch<LojaInfo>("/api/loja");
+
+  if (isLoading) {
+    return (
+      <div className="animate-fade-up max-w-3xl space-y-6">
+        <div>
+          <h1 className="font-display text-2xl font-bold text-[var(--app-card-fg)] tracking-tight">
+            Informações da Loja
+          </h1>
+          <p className="text-[13px] text-neutral-500 mt-1">
+            Dados e configurações da loja
+          </p>
+        </div>
+        <div className="flex items-center justify-center py-12">
+          <p className="text-[13px] text-neutral-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-up max-w-3xl space-y-6">
@@ -53,5 +79,3 @@ async function LojaPage({
     </div>
   );
 }
-
-export default withAuth(LojaPage);

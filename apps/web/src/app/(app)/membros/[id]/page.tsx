@@ -1,6 +1,8 @@
-import { notFound } from "next/navigation";
-import { withAuth } from "@/lib/with-auth";
-import { getMemberById, getMemberHistory } from "@/data/membros";
+"use client";
+
+import { useParams } from "next/navigation";
+import { useMember } from "@/hooks/use-member";
+import { useFetch } from "@/hooks/use-fetch";
 import { DegreeBadge } from "@/components/membros/degree-badge";
 import { CARGO_LABELS } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,24 +11,75 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DeleteMemberButton } from "@/components/membros/delete-member-button";
 import { EditMemberDialog } from "@/components/membros/edit-member-dialog";
 
-async function MemberDetailPage({
-  user,
-  orgId,
-  member: authMember,
-  params,
-}: {
-  user: { name: string };
-  orgId: string;
-  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const [member, history] = await Promise.all([
-    getMemberById(orgId, id),
-    getMemberHistory(id),
-  ]);
+interface MemberDetail {
+  id: string;
+  userName: string;
+  userEmail: string;
+  userImage: string | null;
+  grau: string;
+  cargo: string | null;
+  role: string;
+  ativo: boolean;
+  cim: string | null;
+  telefone: string | null;
+  dataNascimento: string | null;
+  dataIniciacao: string | null;
+  dataElevacao: string | null;
+  dataExaltacao: string | null;
+}
 
-  if (!member) notFound();
+interface HistoryEntry {
+  id: string;
+  campo: string;
+  valorAnterior: string | null;
+  valorNovo: string | null;
+  alteradoPorNome: string;
+  createdAt: string;
+}
+
+interface MemberResponse {
+  member: MemberDetail;
+  history: HistoryEntry[];
+}
+
+export default function MemberDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { member: authMember } = useMember();
+  const { data, error, isLoading } = useFetch<MemberResponse>(
+    id ? `/api/membros/${id}` : null
+  );
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 max-w-2xl animate-fade-up">
+        <div className="animate-pulse space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="size-16 rounded-full bg-neutral-200" />
+            <div className="space-y-2">
+              <div className="h-6 w-48 bg-neutral-200 rounded" />
+              <div className="h-4 w-32 bg-neutral-200 rounded" />
+            </div>
+          </div>
+          <div className="bg-white rounded-2xl shadow-card h-48" />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl">
+        <div className="bg-red-50 text-red-600 rounded-2xl p-6 text-[13px]">
+          Erro ao carregar membro: {error.message}
+        </div>
+      </div>
+    );
+  }
+
+  if (!data) return null;
+
+  const member = data.member;
+  const history = data.history ?? [];
 
   const initials = member.userName
     ?.split(" ")
@@ -152,5 +205,3 @@ function InfoRow({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-
-export default withAuth(MemberDetailPage);

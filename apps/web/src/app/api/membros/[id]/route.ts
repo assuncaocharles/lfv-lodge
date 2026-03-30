@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, and } from "drizzle-orm";
 import { getAuthenticatedUser, isLuz } from "@/lib/api-utils";
-import { getMemberById, updateMemberProfile } from "@/data/membros";
+import { getMemberById, getMemberHistory, updateMemberProfile } from "@/data/membros";
 import { db } from "@/db";
 import { user, account, member, session } from "@/db/auth-schema";
 import { memberProfile, memberHistory } from "@/db/app-schema";
@@ -16,12 +16,15 @@ export async function GET(
   }
 
   const { id } = await params;
-  const member = await getMemberById(auth.orgId, id);
-  if (!member) {
+  const [memberData, history] = await Promise.all([
+    getMemberById(auth.orgId, id),
+    getMemberHistory(id),
+  ]);
+  if (!memberData) {
     return NextResponse.json({ error: "Membro não encontrado" }, { status: 404 });
   }
 
-  return NextResponse.json(member);
+  return NextResponse.json({ member: memberData, history });
 }
 
 export async function PUT(

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser, isLuz } from "@/lib/api-utils";
-import { getAssignmentById, updateAssignment, deleteAssignment } from "@/data/trabalhos";
+import { getAssignmentById, getSubmissions, updateAssignment, deleteAssignment } from "@/data/trabalhos";
 
 export async function GET(
   _req: NextRequest,
@@ -12,12 +12,15 @@ export async function GET(
   }
 
   const { id } = await params;
-  const assignment = await getAssignmentById(auth.orgId, id);
+  const [assignment, submissions] = await Promise.all([
+    getAssignmentById(auth.orgId, id),
+    getSubmissions(id),
+  ]);
   if (!assignment) {
     return NextResponse.json({ error: "Trabalho não encontrado" }, { status: 404 });
   }
 
-  return NextResponse.json(assignment);
+  return NextResponse.json({ ...assignment, submissions });
 }
 
 export async function PUT(

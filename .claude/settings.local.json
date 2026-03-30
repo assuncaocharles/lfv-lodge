@@ -14,7 +14,25 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(DATABASE_URL=\"postgresql://postgres:VaDdvwaQtJEyPkWZcBSPXpXrtVMcPMFn@hopper.proxy.rlwy.net:13406/railway\" SEED_ADMIN_EMAIL=\"junioassuncaocharles@gmail.com\" SEED_ADMIN_PASSWORD=\"13101993\" npx tsx apps/web/src/scripts/seed.ts 2>&1)"
+      "Bash(DATABASE_URL=\"postgresql://postgres:VaDdvwaQtJEyPkWZcBSPXpXrtVMcPMFn@hopper.proxy.rlwy.net:13406/railway\" SEED_ADMIN_EMAIL=\"junioassuncaocharles@gmail.com\" SEED_ADMIN_PASSWORD=\"13101993\" npx tsx apps/web/src/scripts/seed.ts 2>&1)",
+      "Bash(npx next:*)",
+      "WebFetch(domain:www.untitledui.com)",
+      "Bash(npx shadcn@latest add calendar -y)",
+      "Bash(npx shadcn@latest add calendar --overwrite -y)",
+      "Bash(cat:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/my_columns\" pnpm db:push)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//Users/charlesassuncao/Projects/my-columns/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\(''''message'''',{}\\).get\\(''''content'''',[{}]\\)[0].get\\(''''text'''',''''running...''''\\)[:100]\\)\")",
+      "Bash(done)",
+      "Bash(grep -r BETTER_AUTH_URL /Users/charlesassuncao/Projects/my-columns/apps/web --include=*.ts --include=*.tsx --include=*.env*)",
+      "Bash(ls:*)",
+      "Bash(cat apps/web/src/app/\\\\\\(app\\\\\\)/page.tsx)",
+      "Bash(psql:*)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(grep:*)",
+      "Bash(ls -la /Users/charlesassuncao/Projects/my-columns/apps/web/src/app/\\\\\\(app\\\\\\)/)"
     ]
   }
 }

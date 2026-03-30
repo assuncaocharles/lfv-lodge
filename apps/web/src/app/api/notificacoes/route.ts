@@ -4,6 +4,7 @@ import { getMemberByUserId } from "@/data/membros";
 import {
   getActiveNotifications,
   getUnreadCount,
+  getReadIds,
   createNotification,
 } from "@/data/notificacoes";
 
@@ -26,7 +27,15 @@ export async function GET(req: NextRequest) {
   }
 
   const notifications = await getActiveNotifications(auth.orgId, grau, role ?? "member");
-  return NextResponse.json(notifications);
+  const readIds = await getReadIds(
+    auth.user.id,
+    notifications.map((n) => n.id),
+  );
+
+  return NextResponse.json({
+    notifications,
+    readIds: Array.from(readIds),
+  });
 }
 
 export async function POST(req: NextRequest) {

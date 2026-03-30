@@ -1,6 +1,8 @@
-import { notFound } from "next/navigation";
-import { withAuth } from "@/lib/with-auth";
-import { getAssignmentById, getSubmissions } from "@/data/trabalhos";
+"use client";
+
+import { useParams } from "next/navigation";
+import { useMember } from "@/hooks/use-member";
+import { useFetch } from "@/hooks/use-fetch";
 import { Badge } from "@/components/ui/badge";
 import { AssignmentActions } from "@/components/trabalhos/assignment-actions";
 
@@ -20,27 +22,66 @@ const STATUS_COLORS: Record<string, string> = {
   recusado: "bg-red-50 text-red-600",
 };
 
-async function TrabalhoDetailPage({
-  user,
-  orgId,
-  member: authMember,
-  params,
-}: {
-  user: { id: string; name: string };
-  orgId: string;
-  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
-  params: Promise<{ id: string }>;
-}) {
-  const { id } = await params;
-  const [assignment, submissions] = await Promise.all([
-    getAssignmentById(orgId, id),
-    getSubmissions(id),
-  ]);
-  const admin = authMember.isAdmin;
+interface Assignment {
+  id: string;
+  titulo: string;
+  descricao: string | null;
+  prazo: string | null;
+  status: string;
+  atribuidoA: string;
+  atribuidoANome: string;
+  feedbackAdmin: string | null;
+  createdAt: string;
+}
 
-  if (!assignment) notFound();
+// NOTE: The /api/trabalhos/[id] route does not return submissions.
+// A GET endpoint for /api/trabalhos/[id]/envio would need to be created
+// to fetch submissions client-side. For now, the submissions section
+// is rendered but will always show empty until that API is added.
+interface Submission {
+  id: string;
+  nomeArquivo: string;
+  userName: string;
+  createdAt: string;
+  tamanho: number | null;
+  comentario: string | null;
+}
+
+export default function TrabalhoDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const { user, member } = useMember();
+  const { data: assignment, isLoading } = useFetch<Assignment>(
+    `/api/trabalhos/${id}`,
+  );
+  // TODO: Add GET /api/trabalhos/[id]/envio endpoint to support client-side submissions fetching
+  const { data: submissions } = useFetch<Submission[]>(
+    `/api/trabalhos/${id}/envio`,
+  );
+
+  const admin = member.isAdmin;
+
+  if (isLoading) {
+    return (
+      <div className="animate-fade-up space-y-6 max-w-2xl">
+        <div className="flex items-center justify-center py-12">
+          <p className="text-[13px] text-neutral-400">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!assignment) {
+    return (
+      <div className="animate-fade-up space-y-6 max-w-2xl">
+        <p className="text-[13px] text-neutral-400">
+          Trabalho não encontrado
+        </p>
+      </div>
+    );
+  }
 
   const isAssignee = assignment.atribuidoA === user.id;
+  const subs = submissions ?? [];
 
   return (
     <div className="animate-fade-up space-y-6 max-w-2xl">
@@ -87,14 +128,14 @@ async function TrabalhoDetailPage({
 
       <div className="bg-white rounded-2xl shadow-card p-6">
         <h2 className="font-display text-[15px] font-semibold text-neutral-900 tracking-tight">
-          Envios ({submissions.length})
+          Envios ({subs.length})
         </h2>
         <div className="mt-3">
-          {submissions.length === 0 ? (
+          {subs.length === 0 ? (
             <p className="text-[13px] text-neutral-400">Nenhum envio ainda</p>
           ) : (
             <div className="space-y-2">
-              {submissions.map((s) => (
+              {subs.map((s) => (
                 <div
                   key={s.id}
                   className="flex items-center justify-between rounded-xl border border-neutral-100 p-3 transition-all duration-200 hover:bg-neutral-50"
@@ -127,5 +168,3 @@ async function TrabalhoDetailPage({
     </div>
   );
 }
-
-export default withAuth(TrabalhoDetailPage);

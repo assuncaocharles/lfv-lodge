@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser, isLuz } from "@/lib/api-utils";
 import { getMemberByUserId } from "@/data/membros";
-import { getFolderContents, createFolder } from "@/data/documentos";
+import {
+  getFolderContents,
+  getBreadcrumbs,
+  getDocumentById,
+  createFolder,
+} from "@/data/documentos";
 
 export async function GET(req: NextRequest) {
   const auth = await getAuthenticatedUser();
@@ -13,8 +18,17 @@ export async function GET(req: NextRequest) {
   const grau = (member?.grau ?? "1") as "1" | "2" | "3";
   const pastaId = req.nextUrl.searchParams.get("pastaId");
 
-  const contents = await getFolderContents(auth.orgId, pastaId, grau);
-  return NextResponse.json(contents);
+  const [items, breadcrumbs, currentFolder] = await Promise.all([
+    getFolderContents(auth.orgId, pastaId, grau),
+    pastaId ? getBreadcrumbs(pastaId) : [],
+    pastaId ? getDocumentById(auth.orgId, pastaId) : null,
+  ]);
+
+  return NextResponse.json({
+    items,
+    breadcrumbs,
+    currentFolderGrau: currentFolder?.grauMinimo ?? null,
+  });
 }
 
 export async function POST(req: NextRequest) {
