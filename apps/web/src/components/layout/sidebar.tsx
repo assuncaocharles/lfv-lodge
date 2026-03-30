@@ -4,10 +4,15 @@ import Link from "next/link";
 
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS } from "@/lib/navigation";
+import { useMember } from "@/hooks/use-member";
 import { cn } from "@/lib/utils";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { member } = useMember();
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => !item.adminOnly || member.isAdmin,
+  );
 
   return (
     <aside className="hidden md:flex w-[260px] shrink-0 flex-col bg-[var(--app-card)] border-r border-[var(--app-border)]">
@@ -35,7 +40,7 @@ export function Sidebar() {
         <p className="px-3 pt-2 pb-1.5 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
           Menu
         </p>
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+        {visibleItems.map(({ label, href, icon: Icon }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (

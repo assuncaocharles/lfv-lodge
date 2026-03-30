@@ -8,6 +8,7 @@ import {
   integer,
   index,
   unique,
+  bigint,
 } from "drizzle-orm/pg-core";
 import { user, organization } from "./auth-schema";
 
@@ -69,6 +70,39 @@ export const accessRequestStatusEnum = pgEnum("access_request_status", [
   "pendente",
   "aprovado",
   "recusado",
+]);
+
+export const caixaEnum = pgEnum("caixa", [
+  "loja",
+  "hospitalaria",
+  "mensalidades",
+]);
+
+export const tipoLancamentoEnum = pgEnum("tipo_lancamento", [
+  "credito",
+  "debito",
+]);
+
+export const categoriaLancamentoEnum = pgEnum("categoria_lancamento", [
+  // Loja
+  "eventos_confraternizacao",
+  "despesas_da_loja",
+  "mensalidade_de_membro",
+  "taxas_glmmg_per_capta",
+  "taxas_glmmg_fam",
+  "taxas_da_loja",
+  "hospitalaria_repasse",
+  "fraternidade_feminina",
+  "doacoes_diversas",
+  "aplicacao_financeira",
+  // Hospitalaria
+  "tronco_de_solidariedade",
+  "doacao_acoes_sociais",
+  "outras_hospitalaria",
+  // Mensalidades
+  "mensalidade",
+  "joia",
+  "taxa_administrativa",
 ]);
 
 // ── Tables ──
@@ -210,6 +244,13 @@ export const lojaInfo = pgTable("loja_info", {
   diasSessao: text("dias_sessao"),
   horarioSessao: text("horario_sessao"),
   observacoes: text("observacoes"),
+  saldoInicialLoja: integer("saldo_inicial_loja").default(0).notNull(),
+  saldoInicialHospitalaria: integer("saldo_inicial_hospitalaria")
+    .default(0)
+    .notNull(),
+  saldoInicialMensalidades: integer("saldo_inicial_mensalidades")
+    .default(0)
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -355,6 +396,69 @@ export const accessRequests = pgTable(
   ],
 );
 
+export const lancamentos = pgTable(
+  "lancamentos",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    caixa: caixaEnum("caixa").notNull(),
+    data: timestamp("data").notNull(),
+    valor: integer("valor").notNull(),
+    tipo: tipoLancamentoEnum("tipo").notNull(),
+    categoria: categoriaLancamentoEnum("categoria").notNull(),
+    descricao: text("descricao"),
+    membroId: text("membro_id").references(() => memberProfile.id, {
+      onDelete: "set null",
+    }),
+    mesReferencia: text("mes_referencia"),
+    criadoPor: text("criado_por")
+      .notNull()
+      .references(() => user.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    index("lancamentos_orgId_idx").on(t.organizationId),
+    index("lancamentos_caixa_idx").on(t.organizationId, t.caixa),
+    index("lancamentos_data_idx").on(t.organizationId, t.data),
+    index("lancamentos_membro_idx").on(t.membroId),
+  ],
+);
+
+export const saldosMensais = pgTable(
+  "saldos_mensais",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    caixa: caixaEnum("caixa").notNull(),
+    mes: text("mes").notNull(),
+    saldoAnterior: integer("saldo_anterior").notNull(),
+    totalCreditos: integer("total_creditos").notNull(),
+    totalDebitos: integer("total_debitos").notNull(),
+    saldoFinal: integer("saldo_final").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at")
+      .defaultNow()
+      .$onUpdate(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    unique("saldos_mensais_uniq").on(t.organizationId, t.caixa, t.mes),
+    index("saldos_mensais_orgId_idx").on(t.organizationId),
+  ],
+);
+
 // ── Relations ──
 
 export const accessRequestsRelations = relations(accessRequests, ({ one }) => ({
@@ -476,5 +580,27 @@ export const enviosRelations = relations(envios, ({ one }) => ({
   user: one(user, {
     fields: [envios.userId],
     references: [user.id],
+  }),
+}));
+
+export const lancamentosRelations = relations(lancamentos, ({ one }) => ({
+  organization: one(organization, {
+    fields: [lancamentos.organizationId],
+    references: [organization.id],
+  }),
+  membro: one(memberProfile, {
+    fields: [lancamentos.membroId],
+    references: [memberProfile.id],
+  }),
+  criadoPorUser: one(user, {
+    fields: [lancamentos.criadoPor],
+    references: [user.id],
+  }),
+}));
+
+export const saldosMensaisRelations = relations(saldosMensais, ({ one }) => ({
+  organization: one(organization, {
+    fields: [saldosMensais.organizationId],
+    references: [organization.id],
   }),
 }));

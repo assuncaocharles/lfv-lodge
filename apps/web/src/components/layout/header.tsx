@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "iconoir-react";
 import { NAV_ITEMS, getPageTitle } from "@/lib/navigation";
+import { useMember } from "@/hooks/use-member";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserMenu } from "./user-menu";
@@ -16,6 +17,10 @@ import { cn } from "@/lib/utils";
 export function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
+  const { member } = useMember();
+  const visibleItems = NAV_ITEMS.filter(
+    (item) => !item.adminOnly || member.isAdmin,
+  );
   const pageTitle = getPageTitle(pathname);
 
   return (
@@ -54,7 +59,7 @@ export function Header() {
               </div>
             </div>
             <nav className="flex flex-col gap-1 px-3">
-              {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
+              {visibleItems.map(({ label, href, icon: Icon }) => {
                 const isActive =
                   href === "/" ? pathname === "/" : pathname.startsWith(href);
                 return (
