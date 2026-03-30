@@ -6,7 +6,15 @@
       "Bash(pnpm add:*)",
       "Bash(npx shadcn@latest add popover -y)",
       "Bash(identify /Users/charlesassuncao/Projects/my-columns/apps/web/public/logo.png)",
-      "Bash(python3 -c \":*)"
+      "Bash(python3 -c \":*)",
+      "Bash(railway service:*)",
+      "Bash(jq '.[] | select\\(.name == \"\"\"\"lfv-lodge\"\"\"\"\\) | {name, status}')",
+      "Bash(railway logs:*)",
+      "Bash(sips -z 256 256 /Users/charlesassuncao/Projects/my-columns/apps/web/public/logo.png --out /Users/charlesassuncao/Projects/my-columns/apps/web/public/logo-small.png)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(DATABASE_URL=\"postgresql://postgres:VaDdvwaQtJEyPkWZcBSPXpXrtVMcPMFn@hopper.proxy.rlwy.net:13406/railway\" SEED_ADMIN_EMAIL=\"junioassuncaocharles@gmail.com\" SEED_ADMIN_PASSWORD=\"13101993\" npx tsx apps/web/src/scripts/seed.ts 2>&1)"
     ]
   }
 }
