@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   NavArrowLeft,
@@ -35,7 +35,6 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { GRAU_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toSaoPauloDatetimeLocal, formatSaoPauloTime } from "@/lib/timezone";
-import { useMutation } from "@/hooks/use-mutation";
 
 interface Event {
   id: string;
@@ -64,7 +63,6 @@ function toDatetimeLocal(dateStr: string): string {
 }
 
 function toGoogleCalendarDate(dateStr: string): string {
-  // Format as São Paulo local time (no Z = Google uses the ctz timezone)
   const d = new Date(dateStr);
   const sp = new Date(d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
   const y = sp.getFullYear();
@@ -89,11 +87,11 @@ function getGoogleCalendarUrl(event: Event): string {
 }
 
 /* ────────────────────────────────────────────────────────────────── */
-/*  Main CalendarView                                                */
+/*  Main CalendarView — owns events state for optimistic updates     */
 /* ────────────────────────────────────────────────────────────────── */
 
 export function CalendarView({
-  events,
+  events: initialEvents,
   year,
   month,
   isAdmin,
@@ -107,6 +105,7 @@ export function CalendarView({
 }) {
   const router = useRouter();
   const [view, setView] = useState<"mes" | "lista">("mes");
+  const [events, setEvents] = useState<Event[]>(initialEvents);
 
   function navigate(delta: number) {
     let m = month + delta;
@@ -115,6 +114,70 @@ export function CalendarView({
     if (m < 1) { m = 12; y--; }
     router.push(`/calendario?mes=${y}-${String(m).padStart(2, "0")}`);
   }
+
+  // Optimistic: remove event immediately, sync in background
+  const onDelete = useCallback(async (id: string) => {
+    setEvents((prev) => prev.filter((e) => e.id !== id));
+    await fetch(`/api/eventos/${id}`, { method: "DELETE" });
+    router.refresh();
+  }, [router]);
+
+  // Optimistic: add event immediately with temp ID, replace after API responds
+  const onCreate = useCallback(async (data: Record<string, string | null>) => {
+    const tempEvent: Event = {
+      id: `temp-${Date.now()}`,
+      titulo: data.titulo ?? "",
+      descricao: data.descricao ?? null,
+      local: data.local ?? null,
+      dataInicio: data.dataInicio ?? new Date().toISOString(),
+      dataFim: data.dataFim ?? null,
+      diaInteiro: false,
+      grauMinimo: data.grauMinimo ?? "1",
+    };
+    setEvents((prev) => [...prev, tempEvent].sort(
+      (a, b) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime()
+    ));
+
+    const res = await fetch("/api/eventos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    if (res.ok) {
+      const created = await res.json();
+      setEvents((prev) =>
+        prev.map((e) => (e.id === tempEvent.id ? { ...tempEvent, ...created } : e))
+      );
+    }
+    router.refresh();
+  }, [router]);
+
+  // Optimistic: update event immediately, sync in background
+  const onEdit = useCallback(async (id: string, data: Record<string, string | null>) => {
+    setEvents((prev) =>
+      prev.map((e) =>
+        e.id === id
+          ? {
+              ...e,
+              titulo: data.titulo ?? e.titulo,
+              descricao: data.descricao ?? e.descricao,
+              local: data.local ?? e.local,
+              dataInicio: data.dataInicio ?? e.dataInicio,
+              dataFim: data.dataFim ?? e.dataFim,
+              grauMinimo: data.grauMinimo ?? e.grauMinimo,
+            }
+          : e
+      ).sort((a, b) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime())
+    );
+
+    await fetch(`/api/eventos/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    router.refresh();
+  }, [router]);
 
   return (
     <div className="space-y-5 animate-fade-up" style={{ animationFillMode: "both" }}>
@@ -133,7 +196,6 @@ export function CalendarView({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* View toggle */}
           <div className="flex rounded-xl bg-neutral-100 dark:bg-white/5 p-1">
             {(["mes", "lista"] as const).map((v) => (
               <button
@@ -161,14 +223,14 @@ export function CalendarView({
             </Button>
           </a>
 
-          {isAdmin && <NewEventDialog />}
+          {isAdmin && <NewEventDialog onCreate={onCreate} />}
         </div>
       </div>
 
       {view === "mes" ? (
-        <MonthView events={events} year={year} month={month} isAdmin={isAdmin} />
+        <MonthView events={events} year={year} month={month} isAdmin={isAdmin} onDelete={onDelete} onEdit={onEdit} />
       ) : (
-        <ListView events={events} isAdmin={isAdmin} />
+        <ListView events={events} isAdmin={isAdmin} onDelete={onDelete} onEdit={onEdit} />
       )}
     </div>
   );
@@ -179,15 +241,14 @@ export function CalendarView({
 /* ────────────────────────────────────────────────────────────────── */
 
 function MonthView({
-  events,
-  year,
-  month,
-  isAdmin,
+  events, year, month, isAdmin, onDelete, onEdit,
 }: {
   events: Event[];
   year: number;
   month: number;
   isAdmin: boolean;
+  onDelete: (id: string) => Promise<void>;
+  onEdit: (id: string, data: Record<string, string | null>) => Promise<void>;
 }) {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
 
@@ -201,28 +262,19 @@ function MonthView({
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   function getEventsForDay(day: number) {
-    return events.filter((e) => {
-      const d = new Date(e.dataInicio);
-      return d.getDate() === day;
-    });
+    return events.filter((e) => new Date(e.dataInicio).getDate() === day);
   }
 
   return (
     <>
       <div className="bg-[var(--app-card)] rounded-2xl shadow-card overflow-hidden">
-        {/* Day headers */}
         <div className="grid grid-cols-7">
           {DIAS_SEMANA.map((d) => (
-            <div
-              key={d}
-              className="py-3 text-center text-[11px] font-semibold text-neutral-400 uppercase tracking-wider border-b border-neutral-100 dark:border-white/5"
-            >
+            <div key={d} className="py-3 text-center text-[11px] font-semibold text-neutral-400 uppercase tracking-wider border-b border-neutral-100 dark:border-white/5">
               {d}
             </div>
           ))}
         </div>
-
-        {/* Day cells */}
         <div className="grid grid-cols-7">
           {cells.map((day, i) => {
             const dayEvents = day ? getEventsForDay(day) : [];
@@ -239,14 +291,12 @@ function MonthView({
                 {day && (
                   <>
                     <div className="flex items-center justify-center mb-1">
-                      <span
-                        className={cn(
-                          "inline-flex size-7 items-center justify-center rounded-full text-[13px] font-medium",
-                          isToday
-                            ? "bg-neutral-900 text-white font-bold dark:bg-white dark:text-neutral-900"
-                            : "text-neutral-600 dark:text-neutral-400",
-                        )}
-                      >
+                      <span className={cn(
+                        "inline-flex size-7 items-center justify-center rounded-full text-[13px] font-medium",
+                        isToday
+                          ? "bg-neutral-900 text-white font-bold dark:bg-white dark:text-neutral-900"
+                          : "text-neutral-600 dark:text-neutral-400",
+                      )}>
                         {day}
                       </span>
                     </div>
@@ -255,10 +305,7 @@ function MonthView({
                         <button
                           key={e.id}
                           onClick={() => setSelectedEvent(e)}
-                          className={cn(
-                            "w-full text-left truncate rounded-md px-1.5 py-0.5 text-[10px] font-medium cursor-pointer transition-all",
-                            "bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20",
-                          )}
+                          className="w-full text-left truncate rounded-md px-1.5 py-0.5 text-[10px] font-medium cursor-pointer transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-500/10 dark:text-blue-400 dark:hover:bg-blue-500/20"
                         >
                           {!e.diaInteiro && (
                             <span className="text-blue-400 dark:text-blue-300 mr-0.5">
@@ -282,12 +329,13 @@ function MonthView({
         </div>
       </div>
 
-      {/* Event detail popover */}
       {selectedEvent && (
         <EventDetailSheet
           event={selectedEvent}
           isAdmin={isAdmin}
           onClose={() => setSelectedEvent(null)}
+          onDelete={onDelete}
+          onEdit={onEdit}
         />
       )}
     </>
@@ -295,41 +343,34 @@ function MonthView({
 }
 
 /* ────────────────────────────────────────────────────────────────── */
-/*  Event Detail Sheet (click on month view event)                   */
+/*  Event Detail Sheet                                               */
 /* ────────────────────────────────────────────────────────────────── */
 
 function EventDetailSheet({
-  event,
-  isAdmin,
-  onClose,
+  event, isAdmin, onClose, onDelete, onEdit,
 }: {
   event: Event;
   isAdmin: boolean;
   onClose: () => void;
+  onDelete: (id: string) => Promise<void>;
+  onEdit: (id: string, data: Record<string, string | null>) => Promise<void>;
 }) {
-  const { mutate } = useMutation({ onSuccess: onClose });
   const date = new Date(event.dataInicio);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
       <div className="fixed inset-0 bg-black/30 dark:bg-black/50" onClick={onClose} />
       <div className="relative bg-[var(--app-card)] rounded-t-2xl sm:rounded-2xl shadow-elevated w-full sm:max-w-md p-6 animate-slide-down space-y-4">
-        {/* Header */}
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
               {date.toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Sao_Paulo" })}
             </p>
-            <h3 className="font-display text-lg font-bold tracking-tight mt-1">
-              {event.titulo}
-            </h3>
+            <h3 className="font-display text-lg font-bold tracking-tight mt-1">{event.titulo}</h3>
           </div>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors text-xl leading-none p-1">
-            &times;
-          </button>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-600 transition-colors text-xl leading-none p-1">&times;</button>
         </div>
 
-        {/* Details */}
         <div className="space-y-2">
           {!event.diaInteiro && (
             <div className="flex items-center gap-2 text-[13px] text-neutral-500">
@@ -344,26 +385,18 @@ function EventDetailSheet({
               {event.local}
             </div>
           )}
-          {event.descricao && (
-            <p className="text-[13px] text-neutral-500 mt-2">{event.descricao}</p>
-          )}
+          {event.descricao && <p className="text-[13px] text-neutral-500 mt-2">{event.descricao}</p>}
         </div>
 
-        {/* Actions */}
         <div className="flex items-center gap-2 pt-2">
-          <a
-            href={getGoogleCalendarUrl(event)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex-1"
-          >
+          <a href={getGoogleCalendarUrl(event)} target="_blank" rel="noopener noreferrer" className="flex-1">
             <Button variant="outline" size="sm" className="w-full rounded-xl text-[13px] gap-1.5">
               <GoogleCircle className="size-4" /> Google Calendar
             </Button>
           </a>
           {isAdmin && (
             <>
-              <EditEventDialog event={event} />
+              <EditEventDialog event={event} onEdit={onEdit} onClose={onClose} />
               <ConfirmDialog
                 trigger={
                   <Button variant="ghost" size="icon" className="size-9 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50">
@@ -375,7 +408,8 @@ function EventDetailSheet({
                 confirmLabel="Excluir"
                 confirmingLabel="Excluindo..."
                 onConfirm={async () => {
-                  await mutate(() => fetch(`/api/eventos/${event.id}`, { method: "DELETE" }));
+                  onClose();
+                  await onDelete(event.id);
                 }}
               />
             </>
@@ -390,9 +424,14 @@ function EventDetailSheet({
 /*  List View                                                        */
 /* ────────────────────────────────────────────────────────────────── */
 
-function ListView({ events, isAdmin }: { events: Event[]; isAdmin: boolean }) {
-  const { mutate } = useMutation();
-
+function ListView({
+  events, isAdmin, onDelete, onEdit,
+}: {
+  events: Event[];
+  isAdmin: boolean;
+  onDelete: (id: string) => Promise<void>;
+  onEdit: (id: string, data: Record<string, string | null>) => Promise<void>;
+}) {
   if (events.length === 0) {
     return (
       <div className="rounded-2xl bg-[var(--app-card)] shadow-card p-12 text-center text-[13px] text-neutral-500">
@@ -415,7 +454,6 @@ function ListView({ events, isAdmin }: { events: Event[]; isAdmin: boolean }) {
             )}
             style={{ animationFillMode: "both" }}
           >
-            {/* Date badge */}
             <div className="w-14 shrink-0">
               <div className="w-14 h-14 rounded-xl bg-neutral-100 dark:bg-white/5 flex flex-col items-center justify-center">
                 <span className="text-lg font-bold font-display leading-none">
@@ -427,11 +465,8 @@ function ListView({ events, isAdmin }: { events: Event[]; isAdmin: boolean }) {
               </div>
             </div>
 
-            {/* Content */}
             <div className="min-w-0 flex-1">
-              <p className="font-display text-[15px] font-semibold tracking-tight">
-                {event.titulo}
-              </p>
+              <p className="font-display text-[15px] font-semibold tracking-tight">{event.titulo}</p>
               <div className="flex items-center gap-3 mt-1 text-[12px] text-neutral-500">
                 {!event.diaInteiro && (
                   <span className="flex items-center gap-1">
@@ -452,11 +487,10 @@ function ListView({ events, isAdmin }: { events: Event[]; isAdmin: boolean }) {
               )}
             </div>
 
-            {/* Actions */}
             <div className="flex items-center gap-0.5 shrink-0">
               {isAdmin && (
                 <>
-                  <EditEventDialog event={event} />
+                  <EditEventDialog event={event} onEdit={onEdit} />
                   <ConfirmDialog
                     trigger={
                       <Button variant="ghost" size="icon" className="size-8 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50">
@@ -467,9 +501,7 @@ function ListView({ events, isAdmin }: { events: Event[]; isAdmin: boolean }) {
                     description={`Tem certeza que deseja excluir "${event.titulo}"?`}
                     confirmLabel="Excluir"
                     confirmingLabel="Excluindo..."
-                    onConfirm={async () => {
-                      await mutate(() => fetch(`/api/eventos/${event.id}`, { method: "DELETE" }));
-                    }}
+                    onConfirm={() => onDelete(event.id)}
                   />
                 </>
               )}
@@ -487,7 +519,7 @@ function ListView({ events, isAdmin }: { events: Event[]; isAdmin: boolean }) {
 }
 
 /* ────────────────────────────────────────────────────────────────── */
-/*  Event Form (shared between New and Edit)                         */
+/*  Event Form (shared)                                              */
 /* ────────────────────────────────────────────────────────────────── */
 
 function EventForm({
@@ -522,57 +554,29 @@ function EventForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-1.5">
         <Label className="text-[13px] text-neutral-500 font-medium">Título</Label>
-        <Input
-          name="titulo"
-          defaultValue={event?.titulo}
-          required
-          disabled={isPending}
-          className="rounded-xl bg-neutral-50 border-neutral-200 h-10 dark:bg-white/5 dark:border-white/10"
-        />
+        <Input name="titulo" defaultValue={event?.titulo} required disabled={isPending}
+          className="rounded-xl bg-neutral-50 border-neutral-200 h-10 dark:bg-white/5 dark:border-white/10" />
       </div>
-
       <div className="space-y-1.5">
         <Label className="text-[13px] text-neutral-500 font-medium">Descrição</Label>
-        <Textarea
-          name="descricao"
-          defaultValue={event?.descricao ?? ""}
-          rows={2}
-          disabled={isPending}
-          className="rounded-xl bg-neutral-50 border-neutral-200 dark:bg-white/5 dark:border-white/10"
-        />
+        <Textarea name="descricao" defaultValue={event?.descricao ?? ""} rows={2} disabled={isPending}
+          className="rounded-xl bg-neutral-50 border-neutral-200 dark:bg-white/5 dark:border-white/10" />
       </div>
-
       <div className="space-y-1.5">
         <Label className="text-[13px] text-neutral-500 font-medium">Local</Label>
-        <Input
-          name="local"
-          defaultValue={event?.local ?? ""}
-          disabled={isPending}
-          className="rounded-xl bg-neutral-50 border-neutral-200 h-10 dark:bg-white/5 dark:border-white/10"
-        />
+        <Input name="local" defaultValue={event?.local ?? ""} disabled={isPending}
+          className="rounded-xl bg-neutral-50 border-neutral-200 h-10 dark:bg-white/5 dark:border-white/10" />
       </div>
-
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label className="text-[13px] text-neutral-500 font-medium">Início</Label>
-          <DateTimePicker
-            name="dataInicio"
-            defaultValue={event ? toDatetimeLocal(event.dataInicio) : undefined}
-            required
-            disabled={isPending}
-          />
+          <DateTimePicker name="dataInicio" defaultValue={event ? toDatetimeLocal(event.dataInicio) : undefined} required disabled={isPending} />
         </div>
         <div className="space-y-1.5">
           <Label className="text-[13px] text-neutral-500 font-medium">Fim</Label>
-          <DateTimePicker
-            name="dataFim"
-            defaultValue={event?.dataFim ? toDatetimeLocal(event.dataFim) : undefined}
-            disabled={isPending}
-            placeholder="Opcional"
-          />
+          <DateTimePicker name="dataFim" defaultValue={event?.dataFim ? toDatetimeLocal(event.dataFim) : undefined} disabled={isPending} placeholder="Opcional" />
         </div>
       </div>
-
       <div className="space-y-1.5">
         <Label className="text-[13px] text-neutral-500 font-medium">Grau Mínimo</Label>
         <Select name="grauMinimo" defaultValue={event?.grauMinimo ?? "1"} disabled={isPending}>
@@ -586,9 +590,7 @@ function EventForm({
           </SelectContent>
         </Select>
       </div>
-
       {error && <p className="text-[13px] text-red-500">{error}</p>}
-
       <Button type="submit" disabled={isPending} className="w-full rounded-xl h-10">
         {isPending ? submittingLabel : submitLabel}
       </Button>
@@ -600,9 +602,18 @@ function EventForm({
 /*  Edit Event Dialog                                                */
 /* ────────────────────────────────────────────────────────────────── */
 
-function EditEventDialog({ event }: { event: Event }) {
+function EditEventDialog({
+  event,
+  onEdit,
+  onClose,
+}: {
+  event: Event;
+  onEdit: (id: string, data: Record<string, string | null>) => Promise<void>;
+  onClose?: () => void;
+}) {
   const [open, setOpen] = useState(false);
-  const { mutate, isPending, error } = useMutation({ onSuccess: () => setOpen(false) });
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
@@ -621,14 +632,18 @@ function EditEventDialog({ event }: { event: Event }) {
           error={error}
           submitLabel="Salvar Alterações"
           submittingLabel="Salvando..."
-          onSubmit={(data) => {
-            mutate(() =>
-              fetch(`/api/eventos/${event.id}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
-              })
-            );
+          onSubmit={async (data) => {
+            setIsPending(true);
+            setError(null);
+            try {
+              await onEdit(event.id, data);
+              setOpen(false);
+              onClose?.();
+            } catch {
+              setError("Erro ao salvar evento");
+            } finally {
+              setIsPending(false);
+            }
           }}
         />
       </DialogContent>
@@ -640,9 +655,14 @@ function EditEventDialog({ event }: { event: Event }) {
 /*  New Event Dialog                                                 */
 /* ────────────────────────────────────────────────────────────────── */
 
-function NewEventDialog() {
+function NewEventDialog({
+  onCreate,
+}: {
+  onCreate: (data: Record<string, string | null>) => Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
-  const { mutate, isPending, error } = useMutation({ onSuccess: () => setOpen(false) });
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   return (
     <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
@@ -660,14 +680,17 @@ function NewEventDialog() {
           error={error}
           submitLabel="Criar Evento"
           submittingLabel="Criando..."
-          onSubmit={(data) => {
-            mutate(() =>
-              fetch("/api/eventos", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(data),
-              })
-            );
+          onSubmit={async (data) => {
+            setIsPending(true);
+            setError(null);
+            try {
+              await onCreate(data);
+              setOpen(false);
+            } catch {
+              setError("Erro ao criar evento");
+            } finally {
+              setIsPending(false);
+            }
           }}
         />
       </DialogContent>
