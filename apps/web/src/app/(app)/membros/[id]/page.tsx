@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DeleteMemberButton } from "@/components/membros/delete-member-button";
+import { EditMemberDialog } from "@/components/membros/edit-member-dialog";
 
 async function MemberDetailPage({
   user,
@@ -73,7 +74,22 @@ async function MemberDetailPage({
           </div>
         </div>
         {authMember.isAdmin && (
-          <DeleteMemberButton memberId={member.id} memberName={member.userName} />
+          <div className="flex items-center gap-2">
+            <EditMemberDialog
+              member={{
+                id: member.id,
+                grau: member.grau,
+                cargo: member.cargo,
+                cim: member.cim,
+                telefone: member.telefone,
+                dataNascimento: member.dataNascimento?.toString() ?? null,
+                dataIniciacao: member.dataIniciacao?.toString() ?? null,
+                dataElevacao: member.dataElevacao?.toString() ?? null,
+                dataExaltacao: member.dataExaltacao?.toString() ?? null,
+              }}
+            />
+            <DeleteMemberButton memberId={member.id} memberName={member.userName} />
+          </div>
         )}
       </div>
 

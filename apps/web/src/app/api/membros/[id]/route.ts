@@ -40,6 +40,14 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
+
+  // Convert date strings to Date objects
+  for (const key of ["dataNascimento", "dataIniciacao", "dataElevacao", "dataExaltacao"]) {
+    if (body[key] !== undefined) {
+      body[key] = body[key] ? new Date(body[key]) : null;
+    }
+  }
+
   const updated = await updateMemberProfile(id, body);
   return NextResponse.json(updated);
 }

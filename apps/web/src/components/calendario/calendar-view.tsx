@@ -64,7 +64,16 @@ function toDatetimeLocal(dateStr: string): string {
 }
 
 function toGoogleCalendarDate(dateStr: string): string {
-  return new Date(dateStr).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  // Format as São Paulo local time (no Z = Google uses the ctz timezone)
+  const d = new Date(dateStr);
+  const sp = new Date(d.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
+  const y = sp.getFullYear();
+  const m = String(sp.getMonth() + 1).padStart(2, "0");
+  const day = String(sp.getDate()).padStart(2, "0");
+  const h = String(sp.getHours()).padStart(2, "0");
+  const min = String(sp.getMinutes()).padStart(2, "0");
+  const s = String(sp.getSeconds()).padStart(2, "0");
+  return `${y}${m}${day}T${h}${min}${s}`;
 }
 
 function getGoogleCalendarUrl(event: Event): string {
@@ -72,6 +81,7 @@ function getGoogleCalendarUrl(event: Event): string {
     action: "TEMPLATE",
     text: event.titulo,
     dates: `${toGoogleCalendarDate(event.dataInicio)}/${event.dataFim ? toGoogleCalendarDate(event.dataFim) : toGoogleCalendarDate(event.dataInicio)}`,
+    ctz: "America/Sao_Paulo",
   });
   if (event.descricao) params.set("details", event.descricao);
   if (event.local) params.set("location", event.local);
