@@ -7,11 +7,12 @@ import { NotificationList } from "@/components/notificacoes/notification-list";
 export default function NotificacoesPage() {
   const { member } = useMember();
 
-  const { data: notifications, isLoading } = useFetch<any[]>(
-    `/api/notificacoes`,
-  );
+  const { data, isLoading } = useFetch<{
+    notifications: any[];
+    readIds: string[];
+  }>("/api/notificacoes");
 
-  if (isLoading || !notifications) {
+  if (isLoading || !data) {
     return (
       <div className="animate-fade-up space-y-6">
         <div>
@@ -40,8 +41,8 @@ export default function NotificacoesPage() {
         </p>
       </div>
       <NotificationList
-        notifications={notifications}
-        readIds={new Set<string>()}
+        notifications={data.notifications}
+        readIds={new Set(data.readIds)}
         isAdmin={member.isAdmin}
       />
     </div>

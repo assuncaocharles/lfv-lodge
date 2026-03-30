@@ -14,14 +14,13 @@ export default function DocumentosPage() {
     ? `/api/documentos?pastaId=${pastaId}`
     : `/api/documentos`;
 
-  const { data: items, isLoading } = useFetch<any[]>(apiUrl);
+  const { data, isLoading } = useFetch<{
+    items: any[];
+    breadcrumbs: any[];
+    currentFolderGrau: string | null;
+  }>(apiUrl);
 
-  // Fetch folder details when inside a subfolder to get grauMinimo
-  const { data: folderDoc } = useFetch<any>(
-    pastaId ? `/api/documentos/${pastaId}` : null,
-  );
-
-  if (isLoading || !items) {
+  if (isLoading || !data) {
     return (
       <div className="space-y-6 animate-fade-up">
         <div>
@@ -50,10 +49,10 @@ export default function DocumentosPage() {
         </p>
       </div>
       <FileExplorer
-        items={items}
-        breadcrumbs={[]}
+        items={data.items}
+        breadcrumbs={data.breadcrumbs}
         currentFolderId={pastaId ?? null}
-        currentFolderGrau={folderDoc?.grauMinimo ?? null}
+        currentFolderGrau={data.currentFolderGrau}
         isAdmin={member.isAdmin}
       />
     </div>
