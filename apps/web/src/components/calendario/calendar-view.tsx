@@ -28,9 +28,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { GRAU_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { toSaoPauloDatetimeLocal, formatSaoPauloTime } from "@/lib/timezone";
+import { useMutation } from "@/hooks/use-mutation";
 
 interface Event {
   id: string;
@@ -296,12 +298,7 @@ function ListView({
   events: Event[];
   isAdmin: boolean;
 }) {
-  const router = useRouter();
-
-  async function handleDelete(id: string) {
-    await fetch(`/api/eventos/${id}`, { method: "DELETE" });
-    window.location.reload();
-  }
+  const { mutate } = useMutation();
 
   if (events.length === 0) {
     return (
@@ -356,10 +353,25 @@ function ListView({
               {isAdmin && (
                 <>
                   <EditEventDialog event={event} />
-                  <DeleteEventButton
-                    eventId={event.id}
-                    eventTitle={event.titulo}
-                    onDelete={() => handleDelete(event.id)}
+                  <ConfirmDialog
+                    trigger={
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
+                      >
+                        <Trash className="size-4" strokeWidth={1.7} />
+                      </Button>
+                    }
+                    title="Excluir Evento"
+                    description={`Tem certeza que deseja excluir ${event.titulo}? Esta ação não pode ser desfeita.`}
+                    confirmLabel="Excluir"
+                    confirmingLabel="Excluindo..."
+                    onConfirm={async () => {
+                      await mutate(() =>
+                        fetch(`/api/eventos/${event.id}`, { method: "DELETE" })
+                      );
+                    }}
                   />
                 </>
               )}
@@ -385,79 +397,19 @@ function ListView({
   );
 }
 
-function DeleteEventButton({
-  eventId,
-  eventTitle,
-  onDelete,
-}: {
-  eventId: string;
-  eventTitle: string;
-  onDelete: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  async function handleConfirm() {
-    setDeleting(true);
-    await onDelete();
-    setOpen(false);
-    setDeleting(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 rounded-xl text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
-        >
-          <Trash className="size-4" strokeWidth={1.7} />
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-sm rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="font-display text-lg font-bold tracking-tight">
-            Excluir Evento
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-[13px] text-neutral-500">
-          Tem certeza que deseja excluir <strong>{eventTitle}</strong>? Esta ação
-          não pode ser desfeita.
-        </p>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            className="rounded-xl text-[13px]"
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleConfirm}
-            disabled={deleting}
-            className="rounded-xl text-[13px]"
-          >
-            {deleting ? "Excluindo..." : "Excluir"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function EditEventDialog({ event }: { event: Event }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { mutate, isPending, error } = useMutation({
+    onSuccess: () => setOpen(false),
+  });
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setIsSubmitting(true);
     const form = new FormData(e.currentTarget);
-    try {
-      await fetch(`/api/eventos/${event.id}`, {
+
+    await mutate(() =>
+      fetch(`/api/eventos/${event.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -468,15 +420,12 @@ function EditEventDialog({ event }: { event: Event }) {
           dataFim: form.get("dataFim") || null,
           grauMinimo: form.get("grauMinimo"),
         }),
-      });
-      window.location.reload();
-    } finally {
-      setIsSubmitting(false);
-    }
+      })
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button
           variant="ghost"
@@ -501,6 +450,7 @@ function EditEventDialog({ event }: { event: Event }) {
               name="titulo"
               defaultValue={event.titulo}
               required
+              disabled={isPending}
               className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
             />
           </div>
@@ -512,6 +462,7 @@ function EditEventDialog({ event }: { event: Event }) {
               name="descricao"
               defaultValue={event.descricao ?? ""}
               rows={2}
+              disabled={isPending}
               className="rounded-xl bg-neutral-50 border-neutral-200"
             />
           </div>
@@ -522,6 +473,7 @@ function EditEventDialog({ event }: { event: Event }) {
             <Input
               name="local"
               defaultValue={event.local ?? ""}
+              disabled={isPending}
               className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
             />
           </div>
@@ -535,6 +487,7 @@ function EditEventDialog({ event }: { event: Event }) {
                 type="datetime-local"
                 defaultValue={toDatetimeLocal(event.dataInicio)}
                 required
+                disabled={isPending}
                 className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
               />
             </div>
@@ -548,6 +501,7 @@ function EditEventDialog({ event }: { event: Event }) {
                 defaultValue={
                   event.dataFim ? toDatetimeLocal(event.dataFim) : ""
                 }
+                disabled={isPending}
                 className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
               />
             </div>
@@ -556,7 +510,7 @@ function EditEventDialog({ event }: { event: Event }) {
             <Label className="text-[13px] text-neutral-500 font-medium">
               Grau Mínimo
             </Label>
-            <Select name="grauMinimo" defaultValue={event.grauMinimo}>
+            <Select name="grauMinimo" defaultValue={event.grauMinimo} disabled={isPending}>
               <SelectTrigger className="rounded-xl bg-neutral-50 border-neutral-200 h-10">
                 <SelectValue />
               </SelectTrigger>
@@ -569,12 +523,13 @@ function EditEventDialog({ event }: { event: Event }) {
               </SelectContent>
             </Select>
           </div>
+          {error && <p className="text-[13px] text-red-500">{error}</p>}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="w-full rounded-xl h-10 transition-all duration-200"
           >
-            {isSubmitting ? "Salvando..." : "Salvar Alterações"}
+            {isPending ? "Salvando..." : "Salvar Alterações"}
           </Button>
         </form>
       </DialogContent>
@@ -583,16 +538,18 @@ function EditEventDialog({ event }: { event: Event }) {
 }
 
 function NewEventDialog() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { mutate, isPending, error } = useMutation({
+    onSuccess: () => setOpen(false),
+  });
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setIsSubmitting(true);
     const form = new FormData(e.currentTarget);
-    try {
-      await fetch("/api/eventos", {
+
+    await mutate(() =>
+      fetch("/api/eventos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -603,15 +560,12 @@ function NewEventDialog() {
           dataFim: form.get("dataFim") || undefined,
           grauMinimo: form.get("grauMinimo"),
         }),
-      });
-      window.location.reload();
-    } finally {
-      setIsSubmitting(false);
-    }
+      })
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl transition-all duration-200">
           <Plus className="size-4 mr-1.5" /> Evento
@@ -631,6 +585,7 @@ function NewEventDialog() {
             <Input
               name="titulo"
               required
+              disabled={isPending}
               className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
             />
           </div>
@@ -641,6 +596,7 @@ function NewEventDialog() {
             <Textarea
               name="descricao"
               rows={2}
+              disabled={isPending}
               className="rounded-xl bg-neutral-50 border-neutral-200"
             />
           </div>
@@ -650,6 +606,7 @@ function NewEventDialog() {
             </Label>
             <Input
               name="local"
+              disabled={isPending}
               className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
             />
           </div>
@@ -662,6 +619,7 @@ function NewEventDialog() {
                 name="dataInicio"
                 type="datetime-local"
                 required
+                disabled={isPending}
                 className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
               />
             </div>
@@ -672,6 +630,7 @@ function NewEventDialog() {
               <Input
                 name="dataFim"
                 type="datetime-local"
+                disabled={isPending}
                 className="rounded-xl bg-neutral-50 border-neutral-200 h-10"
               />
             </div>
@@ -680,7 +639,7 @@ function NewEventDialog() {
             <Label className="text-[13px] text-neutral-500 font-medium">
               Grau Mínimo
             </Label>
-            <Select name="grauMinimo" defaultValue="1">
+            <Select name="grauMinimo" defaultValue="1" disabled={isPending}>
               <SelectTrigger className="rounded-xl bg-neutral-50 border-neutral-200 h-10">
                 <SelectValue />
               </SelectTrigger>
@@ -693,12 +652,13 @@ function NewEventDialog() {
               </SelectContent>
             </Select>
           </div>
+          {error && <p className="text-[13px] text-red-500">{error}</p>}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="w-full rounded-xl h-10 transition-all duration-200"
           >
-            {isSubmitting ? "Criando..." : "Criar Evento"}
+            {isPending ? "Criando..." : "Criar Evento"}
           </Button>
         </form>
       </DialogContent>

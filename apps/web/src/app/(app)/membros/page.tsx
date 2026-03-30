@@ -1,14 +1,18 @@
 import { withAuth } from "@/lib/with-auth";
-import { isLuz } from "@/lib/api-utils";
 import { getOrgMembers } from "@/data/membros";
 import { MembrosTable } from "@/components/membros/membros-table";
 import { InviteDialog } from "@/components/membros/invite-dialog";
 
-async function MembrosPage({ user, orgId }: { user: { name: string }; orgId: string }) {
-  const [members, admin] = await Promise.all([
-    getOrgMembers(orgId),
-    isLuz(),
-  ]);
+async function MembrosPage({
+  user,
+  orgId,
+  member,
+}: {
+  user: { name: string };
+  orgId: string;
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
+}) {
+  const members = await getOrgMembers(orgId);
 
   return (
     <div className="space-y-6 animate-fade-up">
@@ -21,7 +25,7 @@ async function MembrosPage({ user, orgId }: { user: { name: string }; orgId: str
             {members.length} membro{members.length !== 1 ? "s" : ""} na loja
           </p>
         </div>
-        {admin && <InviteDialog />}
+        {member.isAdmin && <InviteDialog />}
       </div>
       <MembrosTable members={members} />
     </div>

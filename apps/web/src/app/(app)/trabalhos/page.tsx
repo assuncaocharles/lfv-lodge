@@ -1,5 +1,4 @@
 import { withAuth } from "@/lib/with-auth";
-import { isLuz } from "@/lib/api-utils";
 import { getAssignments } from "@/data/trabalhos";
 import { getOrgMembers } from "@/data/membros";
 import { AssignmentList } from "@/components/trabalhos/assignment-list";
@@ -7,14 +6,15 @@ import { AssignmentList } from "@/components/trabalhos/assignment-list";
 async function TrabalhosPage({
   user,
   orgId,
+  member,
 }: {
   user: { id: string; name: string };
   orgId: string;
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
 }) {
-  const admin = await isLuz();
   const [assignments, members] = await Promise.all([
-    admin ? getAssignments(orgId) : getAssignments(orgId, user.id),
-    admin ? getOrgMembers(orgId) : Promise.resolve([]),
+    member.isAdmin ? getAssignments(orgId) : getAssignments(orgId, user.id),
+    member.isAdmin ? getOrgMembers(orgId) : Promise.resolve([]),
   ]);
 
   const memberOptions = members.map((m) => ({
@@ -35,7 +35,7 @@ async function TrabalhosPage({
       <AssignmentList
         assignments={assignments as any}
         members={memberOptions}
-        isAdmin={admin}
+        isAdmin={member.isAdmin}
       />
     </div>
   );

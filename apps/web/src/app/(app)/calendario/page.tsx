@@ -1,7 +1,5 @@
 import { headers } from "next/headers";
 import { withAuth } from "@/lib/with-auth";
-import { isLuz } from "@/lib/api-utils";
-import { getMemberByUserId } from "@/data/membros";
 import { getEventsByRange } from "@/data/eventos";
 import { createFeedToken } from "@/lib/feed-token";
 import { CalendarView } from "@/components/calendario/calendar-view";
@@ -14,7 +12,7 @@ async function CalendarioPage({
 }: {
   user: { id: string; name: string };
   orgId: string;
-  member: { grau: string; role: string; profileId: string | null };
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
   searchParams: Promise<{ mes?: string }>;
 }) {
   const { mes } = await searchParams;
@@ -22,7 +20,6 @@ async function CalendarioPage({
   const year = mes ? parseInt(mes.split("-")[0]) : now.getFullYear();
   const month = mes ? parseInt(mes.split("-")[1]) : now.getMonth() + 1;
 
-  const admin = await isLuz();
   const grau = member.grau as "1" | "2" | "3";
 
   const start = new Date(year, month - 1, 1);
@@ -50,7 +47,7 @@ async function CalendarioPage({
         events={events as any}
         year={year}
         month={month}
-        isAdmin={admin}
+        isAdmin={member.isAdmin}
         feedUrl={feedUrl}
       />
     </div>

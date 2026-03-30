@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { authClient } from "@/lib/auth-client";
+import { useMutation } from "@/hooks/use-mutation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,24 +22,28 @@ import {
 import { GRAU_LABELS, CARGO_LABELS } from "@/lib/constants";
 
 export function InviteDialog() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [grau, setGrau] = useState("1");
   const [cargo, setCargo] = useState<string>("none");
   const [role, setRole] = useState("member");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  const { mutate, isPending, error } = useMutation({
+    onSuccess: () => {
+      setOpen(false);
+      setEmail("");
+      setPassword("");
+      setGrau("1");
+      setCargo("none");
+      setRole("member");
+    },
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      // Create the user account with default password first
-      const res = await fetch("/api/membros/convidar", {
+    await mutate(() =>
+      fetch("/api/membros/convidar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -50,33 +53,12 @@ export function InviteDialog() {
           grau,
           cargo: cargo && cargo !== "none" ? cargo : null,
         }),
-      });
-
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error ?? "Erro ao convidar");
-      }
-
-      setOpen(false);
-      setEmail("");
-      setPassword("");
-      setGrau("1");
-      setCargo("none");
-      setRole("member");
-      window.location.reload();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Erro ao enviar convite. Verifique o email e tente novamente."
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
+      })
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button className="rounded-xl transition-all duration-200 font-semibold text-[13px]">
           Convidar Membro
@@ -103,6 +85,7 @@ export function InviteDialog() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              disabled={isPending}
               className="rounded-xl text-[13px]"
             />
           </div>
@@ -120,6 +103,7 @@ export function InviteDialog() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              disabled={isPending}
               className="rounded-xl text-[13px]"
             />
             <p className="text-[11px] text-neutral-400">
@@ -130,7 +114,7 @@ export function InviteDialog() {
             <Label className="text-[13px] font-medium text-neutral-700">
               Perfil
             </Label>
-            <Select value={role} onValueChange={setRole}>
+            <Select value={role} onValueChange={setRole} disabled={isPending}>
               <SelectTrigger className="rounded-xl text-[13px]">
                 <SelectValue />
               </SelectTrigger>
@@ -148,7 +132,7 @@ export function InviteDialog() {
             <Label className="text-[13px] font-medium text-neutral-700">
               Grau
             </Label>
-            <Select value={grau} onValueChange={setGrau}>
+            <Select value={grau} onValueChange={setGrau} disabled={isPending}>
               <SelectTrigger className="rounded-xl text-[13px]">
                 <SelectValue />
               </SelectTrigger>
@@ -166,7 +150,7 @@ export function InviteDialog() {
               <Label className="text-[13px] font-medium text-neutral-700">
                 Cargo (opcional)
               </Label>
-              <Select value={cargo} onValueChange={setCargo}>
+              <Select value={cargo} onValueChange={setCargo} disabled={isPending}>
                 <SelectTrigger className="rounded-xl text-[13px]">
                   <SelectValue placeholder="Selecionar cargo" />
                 </SelectTrigger>
@@ -187,22 +171,23 @@ export function InviteDialog() {
               </Select>
             </div>
           )}
-          {error && <p className="text-[13px] text-destructive">{error}</p>}
+          {error && <p className="text-[13px] text-red-500">{error}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               onClick={() => setOpen(false)}
+              disabled={isPending}
               className="rounded-xl text-[13px] transition-all duration-200"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
+              disabled={isPending}
               className="rounded-xl transition-all duration-200 font-semibold text-[13px]"
             >
-              {isSubmitting ? "Criando..." : "Criar Membro"}
+              {isPending ? "Criando..." : "Criar Membro"}
             </Button>
           </div>
         </form>

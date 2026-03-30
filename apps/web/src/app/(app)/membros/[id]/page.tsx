@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { withAuth } from "@/lib/with-auth";
-import { isLuz } from "@/lib/api-utils";
 import { getMemberById, getMemberHistory } from "@/data/membros";
 import { DegreeBadge } from "@/components/membros/degree-badge";
 import { CARGO_LABELS } from "@/lib/constants";
@@ -12,17 +11,18 @@ import { DeleteMemberButton } from "@/components/membros/delete-member-button";
 async function MemberDetailPage({
   user,
   orgId,
+  member: authMember,
   params,
 }: {
   user: { name: string };
   orgId: string;
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [member, history, admin] = await Promise.all([
+  const [member, history] = await Promise.all([
     getMemberById(orgId, id),
     getMemberHistory(id),
-    isLuz(),
   ]);
 
   if (!member) notFound();
@@ -72,7 +72,7 @@ async function MemberDetailPage({
             </div>
           </div>
         </div>
-        {admin && (
+        {authMember.isAdmin && (
           <DeleteMemberButton memberId={member.id} memberName={member.userName} />
         )}
       </div>

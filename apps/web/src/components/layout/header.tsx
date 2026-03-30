@@ -5,51 +5,13 @@ import Link from "next/link";
 
 import { usePathname } from "next/navigation";
 import { Menu } from "iconoir-react";
-import {
-  Home,
-  Group,
-  Folder,
-  Calendar,
-  Bell,
-  TaskList,
-  Building,
-  ShareAndroid,
-} from "iconoir-react";
+import { NAV_ITEMS, getPageTitle } from "@/lib/navigation";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { UserMenu } from "./user-menu";
 import { NotificationBell } from "./notification-bell";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { label: "Início", href: "/", icon: Home },
-  { label: "Membros", href: "/membros", icon: Group },
-  { label: "Documentos", href: "/documentos", icon: Folder },
-  { label: "Calendário", href: "/calendario", icon: Calendar },
-  { label: "Notificações", href: "/notificacoes", icon: Bell },
-  { label: "Trabalhos", href: "/trabalhos", icon: TaskList },
-  { label: "Loja", href: "/loja", icon: Building },
-  { label: "Sociais", href: "/sociais", icon: ShareAndroid },
-];
-
-const pageTitles: Record<string, string> = {
-  "/": "Início",
-  "/membros": "Membros",
-  "/documentos": "Documentos",
-  "/calendario": "Calendário",
-  "/notificacoes": "Notificações",
-  "/trabalhos": "Trabalhos",
-  "/loja": "Loja",
-  "/sociais": "Sociais",
-  "/perfil": "Meu Perfil",
-};
-
-function getPageTitle(pathname: string): string {
-  if (pathname === "/") return "Início";
-  const base = "/" + pathname.split("/")[1];
-  return pageTitles[base] ?? "";
-}
 
 export function Header() {
   const [open, setOpen] = useState(false);
@@ -92,7 +54,7 @@ export function Header() {
               </div>
             </div>
             <nav className="flex flex-col gap-1 px-3">
-              {navItems.map(({ label, href, icon: Icon }) => {
+              {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
                 const isActive =
                   href === "/" ? pathname === "/" : pathname.startsWith(href);
                 return (

@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { withAuth } from "@/lib/with-auth";
-import { isLuz } from "@/lib/api-utils";
 import { getAssignmentById, getSubmissions } from "@/data/trabalhos";
 import { Badge } from "@/components/ui/badge";
 import { AssignmentActions } from "@/components/trabalhos/assignment-actions";
@@ -24,18 +23,20 @@ const STATUS_COLORS: Record<string, string> = {
 async function TrabalhoDetailPage({
   user,
   orgId,
+  member: authMember,
   params,
 }: {
   user: { id: string; name: string };
   orgId: string;
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [assignment, submissions, admin] = await Promise.all([
+  const [assignment, submissions] = await Promise.all([
     getAssignmentById(orgId, id),
     getSubmissions(id),
-    isLuz(),
   ]);
+  const admin = authMember.isAdmin;
 
   if (!assignment) notFound();
 

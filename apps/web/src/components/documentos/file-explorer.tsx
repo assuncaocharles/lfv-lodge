@@ -21,8 +21,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { DegreeBadge } from "@/components/membros/degree-badge";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { GRAU_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useMutation } from "@/hooks/use-mutation";
 
 interface Doc {
   id: string;
@@ -53,6 +55,7 @@ export function FileExplorer({
   isAdmin: boolean;
 }) {
   const router = useRouter();
+  const { mutate } = useMutation();
 
   function navigateToFolder(folderId: string | null) {
     if (folderId) {
@@ -60,11 +63,6 @@ export function FileExplorer({
     } else {
       router.push("/documentos");
     }
-  }
-
-  async function handleDelete(id: string) {
-    await fetch(`/api/documentos/${id}`, { method: "DELETE" });
-    window.location.reload();
   }
 
   const folders = items.filter((i) => i.tipo === "folder");
@@ -135,9 +133,21 @@ export function FileExplorer({
                 </div>
               </button>
               {isAdmin && (
-                <DeleteButton
-                  onDelete={() => handleDelete(folder.id)}
-                  itemName={folder.nome}
+                <ConfirmDialog
+                  trigger={
+                    <button className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200">
+                      <Trash className="size-4" strokeWidth={1.7} />
+                    </button>
+                  }
+                  title="Excluir"
+                  description={`Tem certeza que deseja excluir ${folder.nome}? Esta ação não pode ser desfeita.`}
+                  confirmLabel="Excluir"
+                  confirmingLabel="Excluindo..."
+                  onConfirm={async () => {
+                    await mutate(() =>
+                      fetch(`/api/documentos/${folder.id}`, { method: "DELETE" })
+                    );
+                  }}
                 />
               )}
             </div>
@@ -181,9 +191,21 @@ export function FileExplorer({
                   Abrir
                 </a>
                 {isAdmin && (
-                  <DeleteButton
-                    onDelete={() => handleDelete(file.id)}
-                    itemName={file.nome}
+                  <ConfirmDialog
+                    trigger={
+                      <button className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200">
+                        <Trash className="size-4" strokeWidth={1.7} />
+                      </button>
+                    }
+                    title="Excluir"
+                    description={`Tem certeza que deseja excluir ${file.nome}? Esta ação não pode ser desfeita.`}
+                    confirmLabel="Excluir"
+                    confirmingLabel="Excluindo..."
+                    onConfirm={async () => {
+                      await mutate(() =>
+                        fetch(`/api/documentos/${file.id}`, { method: "DELETE" })
+                      );
+                    }}
                   />
                 )}
               </div>
@@ -201,62 +223,6 @@ export function FileExplorer({
   );
 }
 
-function DeleteButton({
-  onDelete,
-  itemName,
-}: {
-  onDelete: () => void;
-  itemName: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-
-  async function handleConfirm() {
-    setDeleting(true);
-    await onDelete();
-    setOpen(false);
-    setDeleting(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <button className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200">
-          <Trash className="size-4" strokeWidth={1.7} />
-        </button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-sm rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="font-display text-lg font-bold tracking-tight">
-            Excluir
-          </DialogTitle>
-        </DialogHeader>
-        <p className="text-[13px] text-neutral-500">
-          Tem certeza que deseja excluir <strong>{itemName}</strong>? Esta ação
-          não pode ser desfeita.
-        </p>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button
-            variant="outline"
-            onClick={() => setOpen(false)}
-            className="rounded-xl text-[13px]"
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="destructive"
-            onClick={handleConfirm}
-            disabled={deleting}
-            className="rounded-xl text-[13px]"
-          >
-            {deleting ? "Excluindo..." : "Excluir"}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -268,31 +234,30 @@ function NewFolderDialog({
 }: {
   currentFolderId: string | null;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
   const [grauMinimo, setGrauMinimo] = useState("1");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { mutate, isPending, error } = useMutation({
+    onSuccess: () => {
+      setOpen(false);
+      setNome("");
+    },
+  });
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setIsSubmitting(true);
-    try {
-      await fetch("/api/documentos", {
+    await mutate(() =>
+      fetch("/api/documentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome, pastaPaiId: currentFolderId, grauMinimo }),
-      });
-      setOpen(false);
-      setNome("");
-      window.location.reload();
-    } finally {
-      setIsSubmitting(false);
-    }
+      })
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button
           variant="outline"
@@ -315,12 +280,13 @@ function NewFolderDialog({
               value={nome}
               onChange={(e) => setNome(e.target.value)}
               required
+              disabled={isPending}
               className="rounded-xl h-10"
             />
           </div>
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-500">Grau Mínimo</Label>
-            <Select value={grauMinimo} onValueChange={setGrauMinimo}>
+            <Select value={grauMinimo} onValueChange={setGrauMinimo} disabled={isPending}>
               <SelectTrigger className="rounded-xl h-10">
                 <SelectValue />
               </SelectTrigger>
@@ -333,12 +299,13 @@ function NewFolderDialog({
               </SelectContent>
             </Select>
           </div>
+          {error && <p className="text-[13px] text-red-500">{error}</p>}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="w-full rounded-xl h-10 transition-all duration-200"
           >
-            {isSubmitting ? "Criando..." : "Criar Pasta"}
+            {isPending ? "Criando..." : "Criar Pasta"}
           </Button>
         </form>
       </DialogContent>
@@ -353,7 +320,6 @@ function UploadDialog({
   currentFolderId: string | null;
   currentFolderGrau: string | null;
 }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [grauMinimo, setGrauMinimo] = useState("1");
@@ -402,7 +368,6 @@ function UploadDialog({
       setTimeout(() => {
         setOpen(false);
         resetState();
-        window.location.reload();
       }, 800);
     } catch (err) {
       setStatus("error");

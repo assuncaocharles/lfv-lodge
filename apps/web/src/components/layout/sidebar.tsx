@@ -3,28 +3,8 @@
 import Link from "next/link";
 
 import { usePathname } from "next/navigation";
-import {
-  Home,
-  Group,
-  Folder,
-  Calendar,
-  Bell,
-  TaskList,
-  Building,
-  ShareAndroid,
-} from "iconoir-react";
+import { NAV_ITEMS } from "@/lib/navigation";
 import { cn } from "@/lib/utils";
-
-const navItems = [
-  { label: "Início", href: "/", icon: Home },
-  { label: "Membros", href: "/membros", icon: Group },
-  { label: "Documentos", href: "/documentos", icon: Folder },
-  { label: "Calendário", href: "/calendario", icon: Calendar },
-  { label: "Notificações", href: "/notificacoes", icon: Bell },
-  { label: "Trabalhos", href: "/trabalhos", icon: TaskList },
-  { label: "Loja", href: "/loja", icon: Building },
-  { label: "Sociais", href: "/sociais", icon: ShareAndroid },
-];
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -55,7 +35,7 @@ export function Sidebar() {
         <p className="px-3 pt-2 pb-1.5 text-[11px] font-semibold text-neutral-400 uppercase tracking-wider">
           Menu
         </p>
-        {navItems.map(({ label, href, icon: Icon }) => {
+        {NAV_ITEMS.map(({ label, href, icon: Icon }) => {
           const isActive =
             href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (

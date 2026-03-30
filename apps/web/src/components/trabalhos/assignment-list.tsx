@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Plus } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useMutation } from "@/hooks/use-mutation";
 
 interface Assignment {
   id: string;
@@ -113,17 +113,18 @@ export function AssignmentList({
 }
 
 function CreateAssignmentDialog({ members }: { members: MemberOption[] }) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { mutate, isPending, error } = useMutation({
+    onSuccess: () => setOpen(false),
+  });
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setIsSubmitting(true);
     const form = new FormData(e.currentTarget);
 
-    try {
-      await fetch("/api/trabalhos", {
+    await mutate(() =>
+      fetch("/api/trabalhos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -132,16 +133,12 @@ function CreateAssignmentDialog({ members }: { members: MemberOption[] }) {
           prazo: form.get("prazo") || undefined,
           atribuidoA: form.get("atribuidoA"),
         }),
-      });
-      setOpen(false);
-      window.location.reload();
-    } finally {
-      setIsSubmitting(false);
-    }
+      })
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl transition-all duration-200">
           <Plus className="size-4 mr-1" /> Novo Trabalho
@@ -156,15 +153,15 @@ function CreateAssignmentDialog({ members }: { members: MemberOption[] }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Título</Label>
-            <Input name="titulo" required className="rounded-xl" />
+            <Input name="titulo" required disabled={isPending} className="rounded-xl" />
           </div>
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Descrição</Label>
-            <Textarea name="descricao" rows={3} className="rounded-xl" />
+            <Textarea name="descricao" rows={3} disabled={isPending} className="rounded-xl" />
           </div>
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Atribuir a</Label>
-            <Select name="atribuidoA" required>
+            <Select name="atribuidoA" required disabled={isPending}>
               <SelectTrigger className="rounded-xl">
                 <SelectValue placeholder="Selecionar membro" />
               </SelectTrigger>
@@ -179,14 +176,15 @@ function CreateAssignmentDialog({ members }: { members: MemberOption[] }) {
           </div>
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Prazo (opcional)</Label>
-            <Input name="prazo" type="date" className="rounded-xl" />
+            <Input name="prazo" type="date" disabled={isPending} className="rounded-xl" />
           </div>
+          {error && <p className="text-[13px] text-red-500">{error}</p>}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="w-full rounded-xl transition-all duration-200"
           >
-            {isSubmitting ? "Criando..." : "Criar Trabalho"}
+            {isPending ? "Criando..." : "Criar Trabalho"}
           </Button>
         </form>
       </DialogContent>

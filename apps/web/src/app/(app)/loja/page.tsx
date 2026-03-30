@@ -1,17 +1,17 @@
 import { withAuth } from "@/lib/with-auth";
-import { isLuz } from "@/lib/api-utils";
 import { getLojaInfo } from "@/data/loja";
 import { LodgeInfoForm } from "@/components/loja/lodge-info-form";
 
 async function LojaPage({
   user,
   orgId,
+  member,
 }: {
   user: { name: string };
   orgId: string;
-  member: { grau: string; role: string; profileId: string | null };
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
 }) {
-  const [info, admin] = await Promise.all([getLojaInfo(orgId), isLuz()]);
+  const info = await getLojaInfo(orgId);
 
   return (
     <div className="animate-fade-up max-w-3xl space-y-6">
@@ -49,7 +49,7 @@ async function LojaPage({
         </div>
       </div>
 
-      <LodgeInfoForm info={info ?? {}} isAdmin={admin} />
+      <LodgeInfoForm info={info ?? {}} isAdmin={member.isAdmin} />
     </div>
   );
 }

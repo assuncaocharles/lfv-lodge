@@ -18,6 +18,7 @@ export interface MemberInfo {
   grau: "1" | "2" | "3";
   role: string;
   profileId: string | null;
+  isAdmin: boolean;
 }
 
 interface WithAuthOptions {
@@ -82,10 +83,14 @@ export function withAuth<TProps extends object>(
       )
       .limit(1);
 
+    const isAdmin =
+      activeMember.role === "owner" || activeMember.role === "admin";
+
     const memberInfo: MemberInfo = {
       grau: (profile?.grau as "1" | "2" | "3") ?? "1",
       role: activeMember.role,
       profileId: profile?.id ?? null,
+      isAdmin,
     };
 
     return Page({

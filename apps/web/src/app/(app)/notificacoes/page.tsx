@@ -1,22 +1,19 @@
 import { withAuth } from "@/lib/with-auth";
-import { isLuz, getActiveRole } from "@/lib/api-utils";
-import { getMemberByUserId } from "@/data/membros";
+import { getActiveRole } from "@/lib/api-utils";
 import { getActiveNotifications, getReadIds } from "@/data/notificacoes";
 import { NotificationList } from "@/components/notificacoes/notification-list";
 
 async function NotificacoesPage({
   user,
   orgId,
+  member,
 }: {
   user: { id: string; name: string };
   orgId: string;
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
 }) {
-  const [member, role, admin] = await Promise.all([
-    getMemberByUserId(orgId, user.id),
-    getActiveRole(),
-    isLuz(),
-  ]);
-  const grau = (member?.grau ?? "1") as "1" | "2" | "3";
+  const role = await getActiveRole();
+  const grau = member.grau as "1" | "2" | "3";
 
   const notifications = await getActiveNotifications(orgId, grau, role ?? "member");
   const readIds = await getReadIds(
@@ -37,7 +34,7 @@ async function NotificacoesPage({
       <NotificationList
         notifications={notifications as any}
         readIds={readIds}
-        isAdmin={admin}
+        isAdmin={member.isAdmin}
       />
     </div>
   );

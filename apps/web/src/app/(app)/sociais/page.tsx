@@ -1,10 +1,17 @@
 import { withAuth } from "@/lib/with-auth";
-import { isLuz } from "@/lib/api-utils";
 import { getSocialLinks } from "@/data/sociais";
 import { SocialLinksGrid } from "@/components/sociais/social-links-grid";
 
-async function SociaisPage({ user, orgId }: { user: { name: string }; orgId: string }) {
-  const [links, admin] = await Promise.all([getSocialLinks(orgId), isLuz()]);
+async function SociaisPage({
+  user,
+  orgId,
+  member,
+}: {
+  user: { name: string };
+  orgId: string;
+  member: { grau: string; role: string; profileId: string | null; isAdmin: boolean };
+}) {
+  const links = await getSocialLinks(orgId);
 
   return (
     <div className="animate-fade-up space-y-6">
@@ -16,7 +23,7 @@ async function SociaisPage({ user, orgId }: { user: { name: string }; orgId: str
           Links e grupos da loja
         </p>
       </div>
-      <SocialLinksGrid links={links} isAdmin={admin} />
+      <SocialLinksGrid links={links} isAdmin={member.isAdmin} />
     </div>
   );
 }

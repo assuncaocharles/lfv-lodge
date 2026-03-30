@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Instagram,
   Facebook,
@@ -28,6 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ConfirmDialog } from "@/components/confirm-dialog";
+import { useMutation } from "@/hooks/use-mutation";
 
 interface SocialLink {
   id: string;
@@ -60,12 +61,7 @@ export function SocialLinksGrid({
   links: SocialLink[];
   isAdmin: boolean;
 }) {
-  const router = useRouter();
-
-  async function handleDelete(id: string) {
-    await fetch(`/api/sociais/${id}`, { method: "DELETE" });
-    window.location.reload();
-  }
+  const { mutate } = useMutation();
 
   return (
     <div className="space-y-4">
@@ -107,12 +103,22 @@ export function SocialLinksGrid({
                   </div>
                 </a>
                 {isAdmin && (
-                  <button
-                    onClick={() => handleDelete(link.id)}
-                    className="absolute top-3 right-3 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200"
-                  >
-                    <Trash className="size-4" />
-                  </button>
+                  <ConfirmDialog
+                    trigger={
+                      <button className="absolute top-3 right-3 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200">
+                        <Trash className="size-4" />
+                      </button>
+                    }
+                    title="Excluir Link"
+                    description={`Tem certeza que deseja excluir ${link.titulo}? Esta ação não pode ser desfeita.`}
+                    confirmLabel="Excluir"
+                    confirmingLabel="Excluindo..."
+                    onConfirm={async () => {
+                      await mutate(() =>
+                        fetch(`/api/sociais/${link.id}`, { method: "DELETE" })
+                      );
+                    }}
+                  />
                 )}
               </div>
             );
@@ -124,17 +130,18 @@ export function SocialLinksGrid({
 }
 
 function AddLinkDialog() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { mutate, isPending, error } = useMutation({
+    onSuccess: () => setOpen(false),
+  });
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setIsSubmitting(true);
     const form = new FormData(e.currentTarget);
 
-    try {
-      await fetch("/api/sociais", {
+    await mutate(() =>
+      fetch("/api/sociais", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -142,16 +149,12 @@ function AddLinkDialog() {
           titulo: form.get("titulo"),
           url: form.get("url"),
         }),
-      });
-      setOpen(false);
-      window.location.reload();
-    } finally {
-      setIsSubmitting(false);
-    }
+      })
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl transition-all duration-200">
           <Plus className="size-4 mr-1.5" /> Adicionar Link
@@ -168,7 +171,7 @@ function AddLinkDialog() {
             <Label className="text-[13px] font-medium text-neutral-600">
               Plataforma
             </Label>
-            <Select name="plataforma" defaultValue="whatsapp">
+            <Select name="plataforma" defaultValue="whatsapp" disabled={isPending}>
               <SelectTrigger className="h-11 rounded-xl bg-neutral-50 border-neutral-200 text-[13px] focus:bg-white transition-all duration-200">
                 <SelectValue />
               </SelectTrigger>
@@ -183,11 +186,12 @@ function AddLinkDialog() {
           </div>
           <div className="space-y-1.5">
             <Label className="text-[13px] font-medium text-neutral-600">
-              Título
+              Titulo
             </Label>
             <Input
               name="titulo"
               required
+              disabled={isPending}
               placeholder="Ex: Grupo da Loja"
               className="h-11 rounded-xl bg-neutral-50 border-neutral-200 text-[13px] focus:bg-white transition-all duration-200"
             />
@@ -200,16 +204,18 @@ function AddLinkDialog() {
               name="url"
               type="url"
               required
+              disabled={isPending}
               placeholder="https://..."
               className="h-11 rounded-xl bg-neutral-50 border-neutral-200 text-[13px] focus:bg-white transition-all duration-200"
             />
           </div>
+          {error && <p className="text-[13px] text-red-500">{error}</p>}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="w-full rounded-xl transition-all duration-200"
           >
-            {isSubmitting ? "Adicionando..." : "Adicionar"}
+            {isPending ? "Adicionando..." : "Adicionar"}
           </Button>
         </form>
       </DialogContent>

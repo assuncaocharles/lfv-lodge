@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Plus } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { useMutation } from "@/hooks/use-mutation";
 
 interface Notification {
   id: string;
@@ -52,15 +52,16 @@ export function NotificationList({
   readIds: Set<string>;
   isAdmin: boolean;
 }) {
-  const router = useRouter();
+  const { mutate } = useMutation();
 
   async function markAsRead(ids: string[]) {
-    await fetch("/api/notificacoes/lidas", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
-    });
-    router.refresh();
+    await mutate(() =>
+      fetch("/api/notificacoes/lidas", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      })
+    );
   }
 
   const unreadIds = notifications
@@ -137,17 +138,18 @@ export function NotificationList({
 }
 
 function CreateNotificationDialog() {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { mutate, isPending, error } = useMutation({
+    onSuccess: () => setOpen(false),
+  });
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setIsSubmitting(true);
     const form = new FormData(e.currentTarget);
 
-    try {
-      await fetch("/api/notificacoes", {
+    await mutate(() =>
+      fetch("/api/notificacoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -157,16 +159,12 @@ function CreateNotificationDialog() {
           expiraEm: form.get("expiraEm") || undefined,
           enviarEmail: form.get("enviarEmail") === "on",
         }),
-      });
-      setOpen(false);
-      router.refresh();
-    } finally {
-      setIsSubmitting(false);
-    }
+      })
+    );
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isPending && setOpen(v)}>
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl transition-all duration-200">
           <Plus className="size-4 mr-1" /> Nova
@@ -181,15 +179,15 @@ function CreateNotificationDialog() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Título</Label>
-            <Input name="titulo" required className="rounded-xl" />
+            <Input name="titulo" required disabled={isPending} className="rounded-xl" />
           </div>
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Mensagem</Label>
-            <Textarea name="corpo" rows={3} required className="rounded-xl" />
+            <Textarea name="corpo" rows={3} required disabled={isPending} className="rounded-xl" />
           </div>
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Público Alvo</Label>
-            <Select name="publicoAlvo" defaultValue="todos">
+            <Select name="publicoAlvo" defaultValue="todos" disabled={isPending}>
               <SelectTrigger className="rounded-xl">
                 <SelectValue />
               </SelectTrigger>
@@ -202,20 +200,21 @@ function CreateNotificationDialog() {
           </div>
           <div className="space-y-2">
             <Label className="text-[13px] text-neutral-700">Expira em (opcional)</Label>
-            <Input name="expiraEm" type="datetime-local" className="rounded-xl" />
+            <Input name="expiraEm" type="datetime-local" disabled={isPending} className="rounded-xl" />
           </div>
           <div className="flex items-center gap-2">
-            <Checkbox name="enviarEmail" id="enviarEmail" />
+            <Checkbox name="enviarEmail" id="enviarEmail" disabled={isPending} />
             <Label htmlFor="enviarEmail" className="text-[13px] text-neutral-600">
               Enviar por email
             </Label>
           </div>
+          {error && <p className="text-[13px] text-red-500">{error}</p>}
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isPending}
             className="w-full rounded-xl transition-all duration-200"
           >
-            {isSubmitting ? "Criando..." : "Criar Notificação"}
+            {isPending ? "Criando..." : "Criar Notificação"}
           </Button>
         </form>
       </DialogContent>
