@@ -7,6 +7,7 @@ import { CARGO_LABELS } from "@/lib/constants";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { DeleteMemberButton } from "@/components/membros/delete-member-button";
 
 async function MemberDetailPage({
   user,
@@ -37,38 +38,43 @@ async function MemberDetailPage({
 
   return (
     <div className="space-y-6 max-w-2xl animate-fade-up">
-      <div className="flex items-center gap-4">
-        <Avatar className="size-16 shadow-card">
-          <AvatarImage src={member.userImage ?? undefined} />
-          <AvatarFallback className="text-lg font-semibold bg-navy-900 text-gold-300">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <h1 className="font-display text-2xl font-bold text-neutral-900 tracking-tight">
-            {member.userName}
-          </h1>
-          <p className="text-[13px] text-neutral-500">{member.userEmail}</p>
-          <div className="flex items-center gap-2 mt-1.5">
-            <DegreeBadge grau={member.grau} />
-            {isAdmin && (
-              <Badge
-                variant="outline"
-                className="rounded-lg px-2.5 py-1 text-[11px] font-semibold text-gold-600 border-gold-300 bg-gold-50"
-              >
-                Luz
-              </Badge>
-            )}
-            {!member.ativo && (
-              <Badge
-                variant="destructive"
-                className="rounded-lg px-2.5 py-1 text-[11px] font-semibold"
-              >
-                Inativo
-              </Badge>
-            )}
+      <div className="flex items-start justify-between">
+        <div className="flex items-center gap-4">
+          <Avatar className="size-16 shadow-card">
+            <AvatarImage src={member.userImage ?? undefined} />
+            <AvatarFallback className="text-lg font-semibold bg-navy-900 text-gold-300">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <h1 className="font-display text-2xl font-bold text-neutral-900 tracking-tight">
+              {member.userName}
+            </h1>
+            <p className="text-[13px] text-neutral-500">{member.userEmail}</p>
+            <div className="flex items-center gap-2 mt-1.5">
+              <DegreeBadge grau={member.grau} />
+              {isAdmin && (
+                <Badge
+                  variant="outline"
+                  className="rounded-lg px-2.5 py-1 text-[11px] font-semibold text-gold-600 border-gold-300 bg-gold-50"
+                >
+                  Luz
+                </Badge>
+              )}
+              {!member.ativo && (
+                <Badge
+                  variant="destructive"
+                  className="rounded-lg px-2.5 py-1 text-[11px] font-semibold"
+                >
+                  Inativo
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
+        {admin && (
+          <DeleteMemberButton memberId={member.id} memberName={member.userName} />
+        )}
       </div>
 
       <Card className="bg-white rounded-2xl shadow-card border-0">
