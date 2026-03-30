@@ -1,31 +1,10 @@
-import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
-import { getAuthenticatedUser } from "@/lib/api-utils";
-import { db } from "@/db";
-import { member } from "@/db/auth-schema";
-
-export default async function AppLayout({
+export default function AppLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Use the same auth check as withAuth for consistency
-  const result = await getAuthenticatedUser();
-
-  if (!result) {
-    redirect("/login");
-  }
-
-  const [membership] = await db
-    .select()
-    .from(member)
-    .where(eq(member.userId, result.user.id))
-    .limit(1);
-
-  if (!membership) {
-    redirect("/solicitar-acesso");
-  }
-
-  // The shell (Sidebar/Header) is rendered by withAuth, not here.
+  // Auth is handled by withAuth() on each page.
+  // No auth check here — layout redirects cause ERR_FAILED
+  // during client-side navigation.
   return <>{children}</>;
 }
