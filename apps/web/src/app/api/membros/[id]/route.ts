@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { eq, and } from "drizzle-orm";
 import { getAuthenticatedUser, isLuz } from "@/lib/api-utils";
-import { getMemberById, updateMemberProfile, deactivateMember } from "@/data/membros";
+import { getMemberById, updateMemberProfile } from "@/data/membros";
+import { db } from "@/db";
+import { user, account, member, session } from "@/db/auth-schema";
+import { memberProfile, memberHistory } from "@/db/app-schema";
 
 export async function GET(
   _req: NextRequest,
@@ -55,6 +59,23 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const deactivated = await deactivateMember(id);
-  return NextResponse.json(deactivated);
+  const memberData = await getMemberById(auth.orgId, id);
+  if (!memberData) {
+    return NextResponse.json({ error: "Membro não encontrado" }, { status: 404 });
+  }
+
+  // Delete member history, profile, org membership, sessions, accounts, and user
+  await db.delete(memberHistory).where(eq(memberHistory.memberProfileId, id));
+  await db.delete(memberProfile).where(eq(memberProfile.id, id));
+  await db.delete(member).where(
+    and(
+      eq(member.userId, memberData.userId),
+      eq(member.organizationId, auth.orgId),
+    ),
+  );
+  await db.delete(session).where(eq(session.userId, memberData.userId));
+  await db.delete(account).where(eq(account.userId, memberData.userId));
+  await db.delete(user).where(eq(user.id, memberData.userId));
+
+  return NextResponse.json({ deleted: true });
 }
