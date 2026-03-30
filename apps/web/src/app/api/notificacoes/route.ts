@@ -10,7 +10,7 @@ import {
 export async function GET(req: NextRequest) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const [member, role] = await Promise.all([
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();

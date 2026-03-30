@@ -12,7 +12,7 @@ export async function POST(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();
@@ -26,7 +26,7 @@ export async function POST(
 
   const member = await getMemberById(auth.orgId, id);
   if (!member) {
-    return NextResponse.json({ error: "Membro nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Membro não encontrado" }, { status: 404 });
   }
 
   const updates: Record<string, unknown> = {};

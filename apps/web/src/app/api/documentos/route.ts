@@ -6,7 +6,7 @@ import { getFolderContents, createFolder } from "@/data/documentos";
 export async function GET(req: NextRequest) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const member = await getMemberByUserId(auth.orgId, auth.user.id);
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();

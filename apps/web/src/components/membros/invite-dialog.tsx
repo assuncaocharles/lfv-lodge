@@ -26,8 +26,9 @@ export function InviteDialog() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [grau, setGrau] = useState("1");
-  const [cargo, setCargo] = useState<string>("");
+  const [cargo, setCargo] = useState<string>("none");
   const [role, setRole] = useState("member");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,18 +39,37 @@ export function InviteDialog() {
     setError(null);
 
     try {
-      await authClient.organization.inviteMember({
-        email,
-        role: role as "member" | "admin",
+      // Create the user account with default password first
+      const res = await fetch("/api/membros/convidar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          role: role as "member" | "admin",
+          grau,
+          cargo: cargo && cargo !== "none" ? cargo : null,
+        }),
       });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Erro ao convidar");
+      }
+
       setOpen(false);
       setEmail("");
+      setPassword("");
       setGrau("1");
-      setCargo("");
+      setCargo("none");
       setRole("member");
       router.refresh();
-    } catch {
-      setError("Erro ao enviar convite. Verifique o email e tente novamente.");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Erro ao enviar convite. Verifique o email e tente novamente."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -70,11 +90,14 @@ export function InviteDialog() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="email" className="text-[13px] font-medium text-neutral-700">
+            <Label
+              htmlFor="invite-email"
+              className="text-[13px] font-medium text-neutral-700"
+            >
               Email
             </Label>
             <Input
-              id="email"
+              id="invite-email"
               type="email"
               placeholder="membro@email.com"
               value={email}
@@ -84,19 +107,47 @@ export function InviteDialog() {
             />
           </div>
           <div className="space-y-2">
-            <Label className="text-[13px] font-medium text-neutral-700">Perfil</Label>
+            <Label
+              htmlFor="invite-password"
+              className="text-[13px] font-medium text-neutral-700"
+            >
+              Senha inicial
+            </Label>
+            <Input
+              id="invite-password"
+              type="text"
+              placeholder="Senha padrão para o membro"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="rounded-xl text-[13px]"
+            />
+            <p className="text-[11px] text-neutral-400">
+              O membro poderá alterar depois no perfil
+            </p>
+          </div>
+          <div className="space-y-2">
+            <Label className="text-[13px] font-medium text-neutral-700">
+              Perfil
+            </Label>
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger className="rounded-xl text-[13px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent className="rounded-xl">
-                <SelectItem value="member" className="text-[13px]">Membro</SelectItem>
-                <SelectItem value="admin" className="text-[13px]">Luz (Administrador)</SelectItem>
+                <SelectItem value="member" className="text-[13px]">
+                  Membro
+                </SelectItem>
+                <SelectItem value="admin" className="text-[13px]">
+                  Luz (Administrador)
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-2">
-            <Label className="text-[13px] font-medium text-neutral-700">Grau</Label>
+            <Label className="text-[13px] font-medium text-neutral-700">
+              Grau
+            </Label>
             <Select value={grau} onValueChange={setGrau}>
               <SelectTrigger className="rounded-xl text-[13px]">
                 <SelectValue />
@@ -112,15 +163,23 @@ export function InviteDialog() {
           </div>
           {grau === "3" && (
             <div className="space-y-2">
-              <Label className="text-[13px] font-medium text-neutral-700">Cargo (opcional)</Label>
+              <Label className="text-[13px] font-medium text-neutral-700">
+                Cargo (opcional)
+              </Label>
               <Select value={cargo} onValueChange={setCargo}>
                 <SelectTrigger className="rounded-xl text-[13px]">
                   <SelectValue placeholder="Selecionar cargo" />
                 </SelectTrigger>
                 <SelectContent className="rounded-xl">
-                  <SelectItem value="" className="text-[13px]">Nenhum</SelectItem>
+                  <SelectItem value="none" className="text-[13px]">
+                    Nenhum
+                  </SelectItem>
                   {Object.entries(CARGO_LABELS).map(([value, label]) => (
-                    <SelectItem key={value} value={value} className="text-[13px]">
+                    <SelectItem
+                      key={value}
+                      value={value}
+                      className="text-[13px]"
+                    >
                       {label}
                     </SelectItem>
                   ))}
@@ -143,7 +202,7 @@ export function InviteDialog() {
               disabled={isSubmitting}
               className="rounded-xl transition-all duration-200 font-semibold text-[13px]"
             >
-              {isSubmitting ? "Enviando..." : "Enviar Convite"}
+              {isSubmitting ? "Criando..." : "Criar Membro"}
             </Button>
           </div>
         </form>

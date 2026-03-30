@@ -8,13 +8,13 @@ export async function GET(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const { id } = await params;
   const assignment = await getAssignmentById(auth.orgId, id);
   if (!assignment) {
-    return NextResponse.json({ error: "Trabalho nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Trabalho não encontrado" }, { status: 404 });
   }
 
   return NextResponse.json(assignment);
@@ -26,14 +26,14 @@ export async function PUT(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const { id } = await params;
   const body = await req.json();
   const assignment = await getAssignmentById(auth.orgId, id);
   if (!assignment) {
-    return NextResponse.json({ error: "Trabalho nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Trabalho não encontrado" }, { status: 404 });
   }
 
   // Members can only update status to "em_andamento" or "enviado"
@@ -61,7 +61,7 @@ export async function DELETE(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();

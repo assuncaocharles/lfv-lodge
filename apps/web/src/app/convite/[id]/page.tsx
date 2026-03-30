@@ -32,7 +32,7 @@ export default function ConvitePage({
         setStatus("success");
         router.push("/");
       } catch {
-        setError("Nao foi possivel aceitar o convite. O convite pode ter expirado.");
+        setError("Não foi possível aceitar o convite. O convite pode ter expirado.");
         setStatus("error");
       }
     }
@@ -46,7 +46,7 @@ export default function ConvitePage({
         <CardHeader className="text-center">
           <CardTitle className="font-display text-xl">Convite</CardTitle>
           <CardDescription>
-            {status === "loading" && "Verificando sessao..."}
+            {status === "loading" && "Verificando sessão..."}
             {status === "accepting" && "Aceitando convite..."}
             {status === "success" && "Convite aceito! Redirecionando..."}
             {status === "error" && "Erro ao aceitar convite"}

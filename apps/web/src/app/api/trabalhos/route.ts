@@ -5,7 +5,7 @@ import { getAssignments, createAssignment } from "@/data/trabalhos";
 export async function GET() {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();
@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();

@@ -9,17 +9,17 @@ export async function POST(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const { id } = await params;
   const assignment = await getAssignmentById(auth.orgId, id);
   if (!assignment) {
-    return NextResponse.json({ error: "Trabalho nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Trabalho não encontrado" }, { status: 404 });
   }
 
   if (assignment.atribuidoA !== auth.user.id) {
-    return NextResponse.json({ error: "Apenas o membro atribuido pode enviar" }, { status: 403 });
+    return NextResponse.json({ error: "Apenas o membro atribuído pode enviar" }, { status: 403 });
   }
 
   const body = await req.json();

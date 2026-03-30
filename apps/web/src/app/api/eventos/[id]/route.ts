@@ -8,13 +8,13 @@ export async function GET(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const { id } = await params;
   const event = await getEventById(auth.orgId, id);
   if (!event) {
-    return NextResponse.json({ error: "Evento nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
   }
 
   return NextResponse.json(event);
@@ -26,7 +26,7 @@ export async function PUT(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();
@@ -49,7 +49,7 @@ export async function DELETE(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();

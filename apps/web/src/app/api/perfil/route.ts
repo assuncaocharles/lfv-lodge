@@ -5,7 +5,7 @@ import { getMemberByUserId, updateMemberProfile } from "@/data/membros";
 export async function GET() {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const member = await getMemberByUserId(auth.orgId, auth.user.id);
@@ -30,12 +30,12 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const member = await getMemberByUserId(auth.orgId, auth.user.id);
   if (!member) {
-    return NextResponse.json({ error: "Perfil nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Perfil não encontrado" }, { status: 404 });
   }
 
   const body = await req.json();

@@ -10,7 +10,7 @@ function formatIcalDate(date: Date): string {
 export async function GET() {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const member = await getMemberByUserId(auth.orgId, auth.user.id);

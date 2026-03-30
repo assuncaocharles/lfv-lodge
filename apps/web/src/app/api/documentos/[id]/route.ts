@@ -9,13 +9,13 @@ export async function GET(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const { id } = await params;
   const doc = await getDocumentById(auth.orgId, id);
   if (!doc) {
-    return NextResponse.json({ error: "Documento nao encontrado" }, { status: 404 });
+    return NextResponse.json({ error: "Documento não encontrado" }, { status: 404 });
   }
 
   if (doc.storageKey) {
@@ -32,7 +32,7 @@ export async function PUT(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();
@@ -52,7 +52,7 @@ export async function DELETE(
 ) {
   const auth = await getAuthenticatedUser();
   if (!auth || !auth.orgId) {
-    return NextResponse.json({ error: "Nao autorizado" }, { status: 401 });
+    return NextResponse.json({ error: "Não autorizado" }, { status: 401 });
   }
 
   const admin = await isLuz();
