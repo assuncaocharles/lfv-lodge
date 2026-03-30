@@ -8,6 +8,7 @@ import { memberProfile } from "@/db/app-schema";
 import { eq, and } from "drizzle-orm";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { RedirectTo } from "@/components/redirect-to";
 
 type AuthResult = NonNullable<
   Awaited<ReturnType<typeof getAuthenticatedUser>>
@@ -40,7 +41,9 @@ export function withAuth<TProps extends object>(
   return async function AuthenticatedPage(props: TProps) {
     // Step 1: Check authentication
     const result = await getAuthenticatedUser();
-    if (!result) redirect("/login");
+    if (!result) {
+      return <RedirectTo url="/login" />;
+    }
 
     const reqHeaders = await headers();
 
@@ -53,7 +56,7 @@ export function withAuth<TProps extends object>(
 
     if (!membership) {
       // User is authenticated but NOT authorized (no org membership)
-      redirect("/solicitar-acesso");
+      return <RedirectTo url="/solicitar-acesso" />;
     }
 
     // Step 3: Ensure active org is set
