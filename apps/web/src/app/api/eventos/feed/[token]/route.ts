@@ -2,9 +2,32 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyFeedToken } from "@/lib/feed-token";
 import { getAllEventsForIcal } from "@/data/eventos";
 
-function formatIcalDate(date: Date): string {
-  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+const TIMEZONE = "America/Sao_Paulo";
+
+function formatLocalDate(date: Date): string {
+  // Format as local São Paulo time (no Z suffix)
+  const sp = new Date(date.toLocaleString("en-US", { timeZone: TIMEZONE }));
+  const y = sp.getFullYear();
+  const m = String(sp.getMonth() + 1).padStart(2, "0");
+  const d = String(sp.getDate()).padStart(2, "0");
+  const h = String(sp.getHours()).padStart(2, "0");
+  const min = String(sp.getMinutes()).padStart(2, "0");
+  const s = String(sp.getSeconds()).padStart(2, "0");
+  return `${y}${m}${d}T${h}${min}${s}`;
 }
+
+// Standard VTIMEZONE for America/Sao_Paulo
+const VTIMEZONE = [
+  "BEGIN:VTIMEZONE",
+  "TZID:America/Sao_Paulo",
+  "BEGIN:STANDARD",
+  "DTSTART:19700101T000000",
+  "TZOFFSETFROM:-0300",
+  "TZOFFSETTO:-0300",
+  "TZNAME:BRT",
+  "END:STANDARD",
+  "END:VTIMEZONE",
+].join("\r\n");
 
 export async function GET(
   _req: NextRequest,
@@ -13,7 +36,7 @@ export async function GET(
   const { token } = await params;
   const data = verifyFeedToken(token);
   if (!data) {
-    return NextResponse.json({ error: "Token invalido" }, { status: 401 });
+    return NextResponse.json({ error: "Token inválido" }, { status: 401 });
   }
 
   const events = await getAllEventsForIcal(data.orgId, data.grau);
@@ -21,19 +44,20 @@ export async function GET(
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Labor Forca e Virtude 003//my-columns//PT",
+    "PRODID:-//Labor Força e Virtude 003//my-columns//PT",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    "X-WR-CALNAME:LFV 003 - Calendario",
-    "X-WR-TIMEZONE:America/Sao_Paulo",
+    "X-WR-CALNAME:LFV 003 - Calendário",
+    `X-WR-TIMEZONE:${TIMEZONE}`,
+    VTIMEZONE,
   ];
 
   for (const event of events) {
     lines.push("BEGIN:VEVENT");
     lines.push(`UID:${event.id}@my-columns`);
-    lines.push(`DTSTART:${formatIcalDate(event.dataInicio)}`);
+    lines.push(`DTSTART;TZID=${TIMEZONE}:${formatLocalDate(event.dataInicio)}`);
     if (event.dataFim) {
-      lines.push(`DTEND:${formatIcalDate(event.dataFim)}`);
+      lines.push(`DTEND;TZID=${TIMEZONE}:${formatLocalDate(event.dataFim)}`);
     }
     lines.push(`SUMMARY:${event.titulo}`);
     if (event.descricao)
