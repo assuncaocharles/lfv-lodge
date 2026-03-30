@@ -197,6 +197,7 @@ function NewFolderDialog({ currentFolderId }: { currentFolderId: string | null }
       });
       setOpen(false);
       setNome("");
+      await new Promise((r) => setTimeout(r, 500));
       router.refresh();
     } finally {
       setIsSubmitting(false);
@@ -286,6 +287,7 @@ function UploadDialog({ currentFolderId }: { currentFolderId: string | null }) {
 
       setOpen(false);
       setFile(null);
+      await new Promise((r) => setTimeout(r, 500));
       router.refresh();
     } finally {
       setIsUploading(false);
