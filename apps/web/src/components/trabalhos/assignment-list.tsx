@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Plus } from "iconoir-react";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { useMutation } from "@/hooks/use-mutation";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 interface Assignment {
   id: string;
@@ -65,21 +65,30 @@ export function AssignmentList({
   members: MemberOption[];
   isAdmin: boolean;
 }) {
+  const [localAssignments, setLocalAssignments] = useState(assignments);
+
+  function handleAssignmentCreated(assignment: Assignment) {
+    setLocalAssignments((prev) => [assignment, ...prev]);
+  }
+
   return (
     <div className="space-y-4">
       {isAdmin && (
         <div className="flex justify-end">
-          <CreateAssignmentDialog members={members} />
+          <CreateAssignmentDialog
+            members={members}
+            onCreated={handleAssignmentCreated}
+          />
         </div>
       )}
 
-      {assignments.length === 0 ? (
+      {localAssignments.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-card p-8 text-center text-[13px] text-neutral-500">
           Nenhum trabalho encontrado
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-card divide-y divide-neutral-100">
-          {assignments.map((a) => (
+          {localAssignments.map((a) => (
             <Link
               key={a.id}
               href={`/trabalhos/${a.id}`}
@@ -112,19 +121,27 @@ export function AssignmentList({
   );
 }
 
-function CreateAssignmentDialog({ members }: { members: MemberOption[] }) {
+function CreateAssignmentDialog({
+  members,
+  onCreated,
+}: {
+  members: MemberOption[];
+  onCreated: (assignment: Assignment) => void;
+}) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-
-  const { mutate, isPending, error } = useMutation({
-    onSuccess: () => setOpen(false),
-  });
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setIsPending(true);
+    setError(null);
+
     const form = new FormData(e.currentTarget);
 
-    await mutate(() =>
-      fetch("/api/trabalhos", {
+    try {
+      const res = await fetch("/api/trabalhos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -133,8 +150,22 @@ function CreateAssignmentDialog({ members }: { members: MemberOption[] }) {
           prazo: form.get("prazo") || undefined,
           atribuidoA: form.get("atribuidoA"),
         }),
-      })
-    );
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Ocorreu um erro");
+      }
+
+      const created = await res.json();
+      onCreated(created);
+      setOpen(false);
+      router.refresh();
+    } catch (err) {
+      setError(getErrorMessage(err, "Ocorreu um erro inesperado"));
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (

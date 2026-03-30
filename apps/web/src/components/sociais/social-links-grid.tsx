@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Instagram,
   Facebook,
@@ -28,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-import { useMutation } from "@/hooks/use-mutation";
+import { getErrorMessage } from "@/lib/utils";
 
 interface SocialLink {
   id: string;
@@ -61,23 +62,37 @@ export function SocialLinksGrid({
   links: SocialLink[];
   isAdmin: boolean;
 }) {
-  const { mutate } = useMutation();
+  const router = useRouter();
+  const [localLinks, setLocalLinks] = useState(links);
+
+  function handleLinkAdded(link: SocialLink) {
+    setLocalLinks((prev) => [...prev, link]);
+  }
+
+  async function handleDelete(linkId: string) {
+    // Optimistic removal
+    setLocalLinks((prev) => prev.filter((l) => l.id !== linkId));
+
+    // Sync in background
+    await fetch(`/api/sociais/${linkId}`, { method: "DELETE" });
+    router.refresh();
+  }
 
   return (
     <div className="space-y-4">
       {isAdmin && (
         <div className="flex justify-end">
-          <AddLinkDialog />
+          <AddLinkDialog onLinkAdded={handleLinkAdded} />
         </div>
       )}
 
-      {links.length === 0 ? (
+      {localLinks.length === 0 ? (
         <div className="rounded-2xl bg-white shadow-card p-8 text-center text-[13px] text-neutral-500">
           Nenhum link cadastrado
         </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {links.map((link) => {
+          {localLinks.map((link) => {
             const Icon = PLATFORM_ICONS[link.plataforma] ?? LinkIcon;
             return (
               <div
@@ -113,11 +128,7 @@ export function SocialLinksGrid({
                     description={`Tem certeza que deseja excluir ${link.titulo}? Esta ação não pode ser desfeita.`}
                     confirmLabel="Excluir"
                     confirmingLabel="Excluindo..."
-                    onConfirm={async () => {
-                      await mutate(() =>
-                        fetch(`/api/sociais/${link.id}`, { method: "DELETE" })
-                      );
-                    }}
+                    onConfirm={() => handleDelete(link.id)}
                   />
                 )}
               </div>
@@ -129,19 +140,25 @@ export function SocialLinksGrid({
   );
 }
 
-function AddLinkDialog() {
+function AddLinkDialog({
+  onLinkAdded,
+}: {
+  onLinkAdded: (link: SocialLink) => void;
+}) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-
-  const { mutate, isPending, error } = useMutation({
-    onSuccess: () => setOpen(false),
-  });
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setIsPending(true);
+    setError(null);
+
     const form = new FormData(e.currentTarget);
 
-    await mutate(() =>
-      fetch("/api/sociais", {
+    try {
+      const res = await fetch("/api/sociais", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -149,8 +166,22 @@ function AddLinkDialog() {
           titulo: form.get("titulo"),
           url: form.get("url"),
         }),
-      })
-    );
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Ocorreu um erro");
+      }
+
+      const created = await res.json();
+      onLinkAdded(created);
+      setOpen(false);
+      router.refresh();
+    } catch (err) {
+      setError(getErrorMessage(err, "Ocorreu um erro inesperado"));
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (

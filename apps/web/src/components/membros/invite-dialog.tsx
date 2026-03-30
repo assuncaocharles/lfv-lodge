@@ -21,7 +21,11 @@ import {
 } from "@/components/ui/select";
 import { GRAU_LABELS, CARGO_LABELS } from "@/lib/constants";
 
-export function InviteDialog() {
+interface InviteDialogProps {
+  onSuccess?: (member: { email: string; grau: string; cargo: string | null; role: string }) => void;
+}
+
+export function InviteDialog({ onSuccess: onInviteSuccess }: InviteDialogProps) {
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -31,6 +35,12 @@ export function InviteDialog() {
 
   const { mutate, isPending, error } = useMutation({
     onSuccess: () => {
+      onInviteSuccess?.({
+        email,
+        grau,
+        cargo: cargo && cargo !== "none" ? cargo : null,
+        role,
+      });
       setOpen(false);
       setEmail("");
       setPassword("");

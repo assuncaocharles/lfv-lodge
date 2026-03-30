@@ -65,6 +65,12 @@ export const notificationTargetEnum = pgEnum("notification_target", [
   "luz",
 ]);
 
+export const accessRequestStatusEnum = pgEnum("access_request_status", [
+  "pendente",
+  "aprovado",
+  "recusado",
+]);
+
 // ── Tables ──
 
 export const memberProfile = pgTable(
@@ -328,7 +334,35 @@ export const envios = pgTable(
   (t) => [index("envios_trabalhoId_idx").on(t.trabalhoId)],
 );
 
+export const accessRequests = pgTable(
+  "access_requests",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    mensagem: text("mensagem"),
+    status: accessRequestStatusEnum("status").default("pendente").notNull(),
+    resolvidoPor: text("resolvido_por").references(() => user.id),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    resolvidoEm: timestamp("resolvido_em"),
+  },
+  (t) => [
+    index("accessRequests_userId_idx").on(t.userId),
+    index("accessRequests_status_idx").on(t.status),
+  ],
+);
+
 // ── Relations ──
+
+export const accessRequestsRelations = relations(accessRequests, ({ one }) => ({
+  user: one(user, {
+    fields: [accessRequests.userId],
+    references: [user.id],
+  }),
+}));
 
 export const memberProfileRelations = relations(memberProfile, ({ one, many }) => ({
   user: one(user, {

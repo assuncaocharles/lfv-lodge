@@ -1,4 +1,4 @@
-import { eq, and, lte, gte, or, isNull, sql, desc } from "drizzle-orm";
+import { eq, and, lte, gte, or, isNull, inArray, sql, desc } from "drizzle-orm";
 import { db } from "@/db";
 import { notificacoes, notificacoesLidas } from "@/db/app-schema";
 import { user } from "@/db/auth-schema";
@@ -136,7 +136,7 @@ export async function getReadIds(userId: string, notificationIds: string[]) {
     .where(
       and(
         eq(notificacoesLidas.userId, userId),
-        sql`${notificacoesLidas.notificacaoId} = ANY(${notificationIds})`,
+        inArray(notificacoesLidas.notificacaoId, notificationIds),
       ),
     );
 

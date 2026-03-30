@@ -49,7 +49,7 @@ export function withAuth<TProps extends object>(
         .where(eq(member.userId, result.user.id))
         .limit(1);
 
-      if (!membership) redirect("/login");
+      if (!membership) redirect("/solicitar-acesso");
 
       await auth.api.setActiveOrganization({
         headers: reqHeaders,

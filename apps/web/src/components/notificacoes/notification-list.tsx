@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Plus } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,8 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
-import { useMutation } from "@/hooks/use-mutation";
+import { cn, getErrorMessage } from "@/lib/utils";
 
 interface Notification {
   id: string;
@@ -52,20 +52,32 @@ export function NotificationList({
   readIds: Set<string>;
   isAdmin: boolean;
 }) {
-  const { mutate } = useMutation();
+  const router = useRouter();
+  const [localNotifications, setLocalNotifications] = useState(notifications);
+  const [localReadIds, setLocalReadIds] = useState(readIds);
 
   async function markAsRead(ids: string[]) {
-    await mutate(() =>
-      fetch("/api/notificacoes/lidas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-      })
-    );
+    // Optimistic update
+    setLocalReadIds((prev) => {
+      const next = new Set(prev);
+      for (const id of ids) next.add(id);
+      return next;
+    });
+
+    // Sync in background
+    fetch("/api/notificacoes/lidas", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    }).then(() => router.refresh());
   }
 
-  const unreadIds = notifications
-    .filter((n) => !readIds.has(n.id))
+  function handleNotificationCreated(notification: Notification) {
+    setLocalNotifications((prev) => [notification, ...prev]);
+  }
+
+  const unreadIds = localNotifications
+    .filter((n) => !localReadIds.has(n.id))
     .map((n) => n.id);
 
   return (
@@ -82,17 +94,21 @@ export function NotificationList({
           </Button>
         )}
         <div className="flex-1" />
-        {isAdmin && <CreateNotificationDialog />}
+        {isAdmin && (
+          <CreateNotificationDialog
+            onCreated={handleNotificationCreated}
+          />
+        )}
       </div>
 
-      {notifications.length === 0 ? (
+      {localNotifications.length === 0 ? (
         <div className="bg-white rounded-2xl shadow-card p-8 text-center text-[13px] text-neutral-500">
           Nenhuma notificação
         </div>
       ) : (
         <div className="bg-white rounded-2xl shadow-card divide-y divide-neutral-100">
-          {notifications.map((n) => {
-            const isRead = readIds.has(n.id);
+          {localNotifications.map((n) => {
+            const isRead = localReadIds.has(n.id);
             return (
               <div
                 key={n.id}
@@ -137,19 +153,25 @@ export function NotificationList({
   );
 }
 
-function CreateNotificationDialog() {
+function CreateNotificationDialog({
+  onCreated,
+}: {
+  onCreated: (notification: Notification) => void;
+}) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
-
-  const { mutate, isPending, error } = useMutation({
-    onSuccess: () => setOpen(false),
-  });
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    setIsPending(true);
+    setError(null);
+
     const form = new FormData(e.currentTarget);
 
-    await mutate(() =>
-      fetch("/api/notificacoes", {
+    try {
+      const res = await fetch("/api/notificacoes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -159,8 +181,22 @@ function CreateNotificationDialog() {
           expiraEm: form.get("expiraEm") || undefined,
           enviarEmail: form.get("enviarEmail") === "on",
         }),
-      })
-    );
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Ocorreu um erro");
+      }
+
+      const created = await res.json();
+      onCreated(created);
+      setOpen(false);
+      router.refresh();
+    } catch (err) {
+      setError(getErrorMessage(err, "Ocorreu um erro inesperado"));
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (

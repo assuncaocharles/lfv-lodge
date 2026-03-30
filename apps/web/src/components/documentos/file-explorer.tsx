@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, Page, Upload, Plus, Trash } from "iconoir-react";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,22 @@ export function FileExplorer({
 }) {
   const router = useRouter();
   const { mutate } = useMutation();
+  const [localItems, setLocalItems] = useState(items);
+
+  // Sync local state when server props change (e.g. after navigation)
+  const [prevItems, setPrevItems] = useState(items);
+  if (items !== prevItems) {
+    setPrevItems(items);
+    setLocalItems(items);
+  }
+
+  const handleFolderCreated = useCallback((folder: Doc) => {
+    setLocalItems((prev) => [...prev, folder]);
+  }, []);
+
+  const handleFileUploaded = useCallback((file: Doc) => {
+    setLocalItems((prev) => [...prev, file]);
+  }, []);
 
   function navigateToFolder(folderId: string | null) {
     if (folderId) {
@@ -65,8 +81,8 @@ export function FileExplorer({
     }
   }
 
-  const folders = items.filter((i) => i.tipo === "folder");
-  const files = items.filter((i) => i.tipo !== "folder");
+  const folders = localItems.filter((i) => i.tipo === "folder");
+  const files = localItems.filter((i) => i.tipo !== "folder");
 
   return (
     <div className="space-y-5">
@@ -94,10 +110,14 @@ export function FileExplorer({
       {/* Actions */}
       {isAdmin && (
         <div className="flex gap-2">
-          <NewFolderDialog currentFolderId={currentFolderId} />
+          <NewFolderDialog
+            currentFolderId={currentFolderId}
+            onFolderCreated={handleFolderCreated}
+          />
           <UploadDialog
             currentFolderId={currentFolderId}
             currentFolderGrau={currentFolderGrau}
+            onFileUploaded={handleFileUploaded}
           />
         </div>
       )}
@@ -144,6 +164,7 @@ export function FileExplorer({
                   confirmLabel="Excluir"
                   confirmingLabel="Excluindo..."
                   onConfirm={async () => {
+                    setLocalItems((prev) => prev.filter((i) => i.id !== folder.id));
                     await mutate(() =>
                       fetch(`/api/documentos/${folder.id}`, { method: "DELETE" })
                     );
@@ -202,6 +223,7 @@ export function FileExplorer({
                     confirmLabel="Excluir"
                     confirmingLabel="Excluindo..."
                     onConfirm={async () => {
+                      setLocalItems((prev) => prev.filter((i) => i.id !== file.id));
                       await mutate(() =>
                         fetch(`/api/documentos/${file.id}`, { method: "DELETE" })
                       );
@@ -214,7 +236,7 @@ export function FileExplorer({
         </div>
       )}
 
-      {items.length === 0 && (
+      {localItems.length === 0 && (
         <div className="rounded-2xl bg-white shadow-card p-12 text-center text-[13px] text-neutral-500">
           Pasta vazia
         </div>
@@ -231,29 +253,45 @@ function formatBytes(bytes: number) {
 
 function NewFolderDialog({
   currentFolderId,
+  onFolderCreated,
 }: {
   currentFolderId: string | null;
+  onFolderCreated: (folder: Doc) => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
   const [grauMinimo, setGrauMinimo] = useState("1");
-
-  const { mutate, isPending, error } = useMutation({
-    onSuccess: () => {
-      setOpen(false);
-      setNome("");
-    },
-  });
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    await mutate(() =>
-      fetch("/api/documentos", {
+    setIsPending(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/documentos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nome, pastaPaiId: currentFolderId, grauMinimo }),
-      })
-    );
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? "Erro ao criar pasta");
+      }
+
+      const created = await res.json();
+      onFolderCreated(created);
+      setOpen(false);
+      setNome("");
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ocorreu um erro inesperado");
+    } finally {
+      setIsPending(false);
+    }
   }
 
   return (
@@ -316,10 +354,13 @@ function NewFolderDialog({
 function UploadDialog({
   currentFolderId,
   currentFolderGrau,
+  onFileUploaded,
 }: {
   currentFolderId: string | null;
   currentFolderGrau: string | null;
+  onFileUploaded: (file: Doc) => void;
 }) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [grauMinimo, setGrauMinimo] = useState("1");
@@ -362,12 +403,15 @@ function UploadDialog({
         throw new Error(data?.error ?? "Erro ao enviar arquivo");
       }
 
+      const { doc } = await res.json();
+      onFileUploaded(doc);
       setStatus("success");
 
       // Brief success feedback, then close and refresh
       setTimeout(() => {
         setOpen(false);
         resetState();
+        router.refresh();
       }, 800);
     } catch (err) {
       setStatus("error");
