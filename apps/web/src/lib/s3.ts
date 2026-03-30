@@ -22,13 +22,11 @@ const bucket = () => process.env.R2_BUCKET_NAME!;
 export async function generateUploadUrl(
   key: string,
   contentType: string,
-  maxSizeBytes: number = 50 * 1024 * 1024,
 ) {
   const command = new PutObjectCommand({
     Bucket: bucket(),
     Key: key,
     ContentType: contentType,
-    ContentLength: maxSizeBytes,
   });
   return getSignedUrl(getS3Client(), command, { expiresIn: 3600 });
 }

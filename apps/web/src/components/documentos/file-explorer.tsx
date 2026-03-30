@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Folder, Page, Upload, Plus, Trash } from "iconoir-react";
 import { Button } from "@/components/ui/button";
@@ -356,10 +356,13 @@ function UploadDialog({
   currentFolderGrau: string | null;
 }) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [grauMinimo, setGrauMinimo] = useState("1");
   const [isUploading, setIsUploading] = useState(false);
+
+  const isBusy = isUploading || isPending;
 
   // If inside a folder, use the folder's grau
   const inheritedGrau = currentFolderGrau;
@@ -389,17 +392,24 @@ function UploadDialog({
         headers: { "Content-Type": file.type },
       });
 
+      setIsUploading(false);
       setFile(null);
-      await new Promise((r) => setTimeout(r, 500));
-      router.refresh();
+
+      // Use startTransition to track when refresh actually completes
+      startTransition(() => {
+        router.refresh();
+      });
+
+      // Wait for the transition to settle, then close
+      await new Promise((r) => setTimeout(r, 1000));
       setOpen(false);
-    } finally {
+    } catch {
       setIsUploading(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => !isUploading && setOpen(v)}>
+    <Dialog open={open} onOpenChange={(v) => !isBusy && setOpen(v)}>
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl transition-all duration-200">
           <Upload className="size-4 mr-1.5" /> Upload
@@ -449,10 +459,10 @@ function UploadDialog({
           )}
           <Button
             type="submit"
-            disabled={isUploading || !file}
+            disabled={isBusy || !file}
             className="w-full rounded-xl h-10 transition-all duration-200"
           >
-            {isUploading ? "Enviando..." : "Enviar"}
+            {isUploading ? "Enviando..." : isPending ? "Atualizando..." : "Enviar"}
           </Button>
         </form>
       </DialogContent>
