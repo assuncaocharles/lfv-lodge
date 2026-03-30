@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { GRAU_LABELS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { toSaoPauloDatetimeLocal, formatSaoPauloTime } from "@/lib/timezone";
 
 interface Event {
   id: string;
@@ -60,10 +61,7 @@ const MESES = [
 const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
 
 function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleTimeString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatSaoPauloTime(new Date(dateStr));
 }
 
 function toGoogleCalendarDate(dateStr: string): string {
@@ -85,13 +83,7 @@ function getGoogleCalendarUrl(event: Event): string {
 }
 
 function toDatetimeLocal(dateStr: string): string {
-  const d = new Date(dateStr);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  const h = String(d.getHours()).padStart(2, "0");
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${y}-${m}-${day}T${h}:${min}`;
+  return toSaoPauloDatetimeLocal(new Date(dateStr));
 }
 
 export function CalendarView({

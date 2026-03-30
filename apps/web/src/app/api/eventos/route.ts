@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser, isLuz } from "@/lib/api-utils";
 import { getMemberByUserId } from "@/data/membros";
 import { getEventsByRange, createEvent } from "@/data/eventos";
+import { parseSaoPauloDate } from "@/lib/timezone";
 
 export async function GET(req: NextRequest) {
   const auth = await getAuthenticatedUser();
@@ -41,8 +42,8 @@ export async function POST(req: NextRequest) {
     titulo: body.titulo,
     descricao: body.descricao,
     local: body.local,
-    dataInicio: new Date(body.dataInicio),
-    dataFim: body.dataFim ? new Date(body.dataFim) : undefined,
+    dataInicio: parseSaoPauloDate(body.dataInicio),
+    dataFim: body.dataFim ? parseSaoPauloDate(body.dataFim) : undefined,
     diaInteiro: body.diaInteiro,
     grauMinimo: body.grauMinimo,
     criadoPor: auth.user.id,

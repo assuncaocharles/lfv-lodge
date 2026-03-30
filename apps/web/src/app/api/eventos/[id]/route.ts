@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser, isLuz } from "@/lib/api-utils";
 import { getEventById, updateEvent, deleteEvent } from "@/data/eventos";
+import { parseSaoPauloDate } from "@/lib/timezone";
 
 export async function GET(
   _req: NextRequest,
@@ -36,8 +37,8 @@ export async function PUT(
 
   const { id } = await params;
   const body = await req.json();
-  if (body.dataInicio) body.dataInicio = new Date(body.dataInicio);
-  if (body.dataFim) body.dataFim = new Date(body.dataFim);
+  if (body.dataInicio) body.dataInicio = parseSaoPauloDate(body.dataInicio);
+  if (body.dataFim) body.dataFim = parseSaoPauloDate(body.dataFim);
 
   const updated = await updateEvent(id, body);
   return NextResponse.json(updated);

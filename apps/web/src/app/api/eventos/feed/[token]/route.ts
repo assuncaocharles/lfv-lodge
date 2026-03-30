@@ -49,6 +49,8 @@ export async function GET(
     "METHOD:PUBLISH",
     "X-WR-CALNAME:LFV 003 - Calendário",
     `X-WR-TIMEZONE:${TIMEZONE}`,
+    "X-PUBLISHED-TTL:PT30M",
+    "REFRESH-INTERVAL;VALUE=DURATION:PT30M",
     VTIMEZONE,
   ];
 
