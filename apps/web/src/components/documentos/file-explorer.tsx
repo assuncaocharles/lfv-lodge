@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Folder, Page, Upload, Plus } from "iconoir-react";
+import { Folder, Page, Upload, Plus, Trash } from "iconoir-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -43,11 +43,13 @@ export function FileExplorer({
   items,
   breadcrumbs,
   currentFolderId,
+  currentFolderGrau,
   isAdmin,
 }: {
   items: Doc[];
   breadcrumbs: Breadcrumb[];
   currentFolderId: string | null;
+  currentFolderGrau: string | null;
   isAdmin: boolean;
 }) {
   const router = useRouter();
@@ -58,6 +60,12 @@ export function FileExplorer({
     } else {
       router.push("/documentos");
     }
+  }
+
+  async function handleDelete(id: string) {
+    await fetch(`/api/documentos/${id}`, { method: "DELETE" });
+    await new Promise((r) => setTimeout(r, 500));
+    router.refresh();
   }
 
   const folders = items.filter((i) => i.tipo === "folder");
@@ -90,7 +98,10 @@ export function FileExplorer({
       {isAdmin && (
         <div className="flex gap-2">
           <NewFolderDialog currentFolderId={currentFolderId} />
-          <UploadDialog currentFolderId={currentFolderId} />
+          <UploadDialog
+            currentFolderId={currentFolderId}
+            currentFolderGrau={currentFolderGrau}
+          />
         </div>
       )}
 
@@ -98,29 +109,39 @@ export function FileExplorer({
       {folders.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {folders.map((folder, i) => (
-            <button
+            <div
               key={folder.id}
-              onClick={() => navigateToFolder(folder.id)}
               className={cn(
-                "flex items-center gap-3 rounded-xl bg-white p-4 text-left",
+                "flex items-center gap-3 rounded-xl bg-white p-4",
                 "shadow-card transition-all duration-200",
                 "hover:bg-neutral-50 hover:shadow-card-hover hover:-translate-y-px",
                 `animate-fade-up stagger-${Math.min(i + 1, 6)}`,
               )}
               style={{ animationFillMode: "both" }}
             >
-              <div className="flex size-10 items-center justify-center rounded-xl bg-gold-50 shrink-0">
-                <Folder className="size-5 text-gold-600" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[15px] font-semibold text-neutral-900 truncate">
-                  {folder.nome}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <DegreeBadge grau={folder.grauMinimo} />
+              <button
+                onClick={() => navigateToFolder(folder.id)}
+                className="flex items-center gap-3 flex-1 min-w-0 text-left"
+              >
+                <div className="flex size-10 items-center justify-center rounded-xl bg-gold-50 shrink-0">
+                  <Folder className="size-5 text-gold-600" />
                 </div>
-              </div>
-            </button>
+                <div className="min-w-0">
+                  <p className="text-[15px] font-semibold text-neutral-900 truncate">
+                    {folder.nome}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <DegreeBadge grau={folder.grauMinimo} />
+                  </div>
+                </div>
+              </button>
+              {isAdmin && (
+                <DeleteButton
+                  onDelete={() => handleDelete(folder.id)}
+                  itemName={folder.nome}
+                />
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -147,18 +168,26 @@ export function FileExplorer({
                   {file.nome}
                 </p>
                 <p className="text-[13px] text-neutral-500 mt-0.5">
-                  {file.tamanho ? formatBytes(file.tamanho) : ""} · {file.criadoPorNome}
+                  {file.tamanho ? formatBytes(file.tamanho) : ""} ·{" "}
+                  {file.criadoPorNome}
                 </p>
-                <DegreeBadge grau={file.grauMinimo} />
               </div>
-              <a
-                href={`/api/documentos/${file.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[13px] font-medium text-gold-600 hover:text-gold-700 transition-all duration-200"
-              >
-                Abrir
-              </a>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <a
+                  href={`/api/documentos/${file.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[13px] font-medium text-neutral-600 hover:text-neutral-900 transition-all duration-200"
+                >
+                  Abrir
+                </a>
+                {isAdmin && (
+                  <DeleteButton
+                    onDelete={() => handleDelete(file.id)}
+                    itemName={file.nome}
+                  />
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -173,13 +202,73 @@ export function FileExplorer({
   );
 }
 
+function DeleteButton({
+  onDelete,
+  itemName,
+}: {
+  onDelete: () => void;
+  itemName: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  async function handleConfirm() {
+    setDeleting(true);
+    await onDelete();
+    setOpen(false);
+    setDeleting(false);
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 transition-all duration-200">
+          <Trash className="size-4" strokeWidth={1.7} />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-sm rounded-2xl">
+        <DialogHeader>
+          <DialogTitle className="font-display text-lg font-bold tracking-tight">
+            Excluir
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-[13px] text-neutral-500">
+          Tem certeza que deseja excluir <strong>{itemName}</strong>? Esta ação
+          não pode ser desfeita.
+        </p>
+        <div className="flex justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => setOpen(false)}
+            className="rounded-xl text-[13px]"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={handleConfirm}
+            disabled={deleting}
+            className="rounded-xl text-[13px]"
+          >
+            {deleting ? "Excluindo..." : "Excluir"}
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function formatBytes(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function NewFolderDialog({ currentFolderId }: { currentFolderId: string | null }) {
+function NewFolderDialog({
+  currentFolderId,
+}: {
+  currentFolderId: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [nome, setNome] = useState("");
@@ -207,7 +296,11 @@ function NewFolderDialog({ currentFolderId }: { currentFolderId: string | null }
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="rounded-xl transition-all duration-200">
+        <Button
+          variant="outline"
+          size="sm"
+          className="rounded-xl transition-all duration-200"
+        >
           <Plus className="size-4 mr-1.5" /> Nova Pasta
         </Button>
       </DialogTrigger>
@@ -235,7 +328,9 @@ function NewFolderDialog({ currentFolderId }: { currentFolderId: string | null }
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(GRAU_LABELS).map(([v, l]) => (
-                  <SelectItem key={v} value={v}>{l}</SelectItem>
+                  <SelectItem key={v} value={v}>
+                    {l}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -253,12 +348,21 @@ function NewFolderDialog({ currentFolderId }: { currentFolderId: string | null }
   );
 }
 
-function UploadDialog({ currentFolderId }: { currentFolderId: string | null }) {
+function UploadDialog({
+  currentFolderId,
+  currentFolderGrau,
+}: {
+  currentFolderId: string | null;
+  currentFolderGrau: string | null;
+}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [grauMinimo, setGrauMinimo] = useState("1");
   const [isUploading, setIsUploading] = useState(false);
+
+  // If inside a folder, use the folder's grau
+  const inheritedGrau = currentFolderGrau;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -274,7 +378,7 @@ function UploadDialog({ currentFolderId }: { currentFolderId: string | null }) {
           mimeType: file.type,
           tamanho: file.size,
           pastaPaiId: currentFolderId,
-          grauMinimo,
+          grauMinimo: inheritedGrau ?? grauMinimo,
         }),
       });
       const { uploadUrl } = await res.json();
@@ -317,19 +421,32 @@ function UploadDialog({ currentFolderId }: { currentFolderId: string | null }) {
               className="rounded-xl"
             />
           </div>
-          <div className="space-y-2">
-            <Label className="text-[13px] text-neutral-500">Grau Mínimo</Label>
-            <Select value={grauMinimo} onValueChange={setGrauMinimo}>
-              <SelectTrigger className="rounded-xl h-10">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(GRAU_LABELS).map(([v, l]) => (
-                  <SelectItem key={v} value={v}>{l}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {inheritedGrau ? (
+            <p className="text-[12px] text-neutral-400">
+              Grau mínimo herdado da pasta:{" "}
+              <span className="font-medium text-neutral-600">
+                {GRAU_LABELS[inheritedGrau] ?? `Grau ${inheritedGrau}`}
+              </span>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <Label className="text-[13px] text-neutral-500">
+                Grau Mínimo
+              </Label>
+              <Select value={grauMinimo} onValueChange={setGrauMinimo}>
+                <SelectTrigger className="rounded-xl h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(GRAU_LABELS).map(([v, l]) => (
+                    <SelectItem key={v} value={v}>
+                      {l}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <Button
             type="submit"
             disabled={isUploading || !file}

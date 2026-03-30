@@ -1,7 +1,7 @@
 import { withAuth } from "@/lib/with-auth";
 import { isLuz } from "@/lib/api-utils";
 import { getMemberByUserId } from "@/data/membros";
-import { getFolderContents, getBreadcrumbs } from "@/data/documentos";
+import { getFolderContents, getBreadcrumbs, getDocumentById } from "@/data/documentos";
 import { FileExplorer } from "@/components/documentos/file-explorer";
 
 async function DocumentosPage({
@@ -11,6 +11,7 @@ async function DocumentosPage({
 }: {
   user: { id: string; name: string };
   orgId: string;
+  member: { grau: string; role: string; profileId: string | null };
   searchParams: Promise<{ pasta?: string }>;
 }) {
   const { pasta: pastaId } = await searchParams;
@@ -20,9 +21,10 @@ async function DocumentosPage({
   ]);
   const grau = (member?.grau ?? "1") as "1" | "2" | "3";
 
-  const [items, breadcrumbs] = await Promise.all([
+  const [items, breadcrumbs, currentFolder] = await Promise.all([
     getFolderContents(orgId, pastaId ?? null, grau),
     pastaId ? getBreadcrumbs(pastaId) : [],
+    pastaId ? getDocumentById(orgId, pastaId) : null,
   ]);
 
   return (
@@ -39,6 +41,7 @@ async function DocumentosPage({
         items={items as any}
         breadcrumbs={breadcrumbs}
         currentFolderId={pastaId ?? null}
+        currentFolderGrau={currentFolder?.grauMinimo ?? null}
         isAdmin={admin}
       />
     </div>
