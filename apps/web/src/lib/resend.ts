@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { InviteEmail } from "@/emails/invite-email";
+import { WelcomeEmail } from "@/emails/welcome-email";
 
 let resend: Resend;
 function getResend() {
@@ -23,6 +24,26 @@ export async function sendInviteEmail(params: {
       inviterName: params.inviterName,
       role: params.role,
       inviteUrl: params.inviteUrl,
+    }),
+  });
+}
+
+export async function sendWelcomeEmail(params: {
+  to: string;
+  lojaName: string;
+  email: string;
+  password: string;
+  loginUrl: string;
+}) {
+  await getResend().emails.send({
+    from: `Minha Loja <noreply@${process.env.BETTER_AUTH_URL?.replace("https://", "").replace("http://", "") || "localhost"}>`,
+    to: params.to,
+    subject: `Bem-vindo à ${params.lojaName}`,
+    react: WelcomeEmail({
+      lojaName: params.lojaName,
+      email: params.email,
+      password: params.password,
+      loginUrl: params.loginUrl,
     }),
   });
 }

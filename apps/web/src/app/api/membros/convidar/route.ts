@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { headers } from "next/headers";
 import { scryptSync, randomBytes } from "node:crypto";
 import { eq, and } from "drizzle-orm";
 import { getAuthenticatedUser, isLuz } from "@/lib/api-utils";
-import { auth } from "@/lib/auth";
 import { db } from "@/db";
+import { sendWelcomeEmail } from "@/lib/resend";
 import { user, account, member } from "@/db/auth-schema";
 import { memberProfile } from "@/db/app-schema";
 
@@ -111,6 +110,21 @@ export async function POST(req: NextRequest) {
       grau: (grau as "1" | "2" | "3") ?? "1",
       cargo: cargo ?? null,
     });
+
+    // Send welcome email with credentials
+    const loginUrl = `${process.env.BETTER_AUTH_URL}/login`;
+    try {
+      await sendWelcomeEmail({
+        to: email,
+        lojaName: "Labor, Força e Virtude Nº 003",
+        email,
+        password,
+        loginUrl,
+      });
+    } catch (emailErr) {
+      console.error("Erro ao enviar email:", emailErr);
+      // Member was created, don't fail the request
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (err) {
