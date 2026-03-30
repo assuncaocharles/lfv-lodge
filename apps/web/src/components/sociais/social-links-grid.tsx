@@ -64,7 +64,7 @@ export function SocialLinksGrid({
 
   async function handleDelete(id: string) {
     await fetch(`/api/sociais/${id}`, { method: "DELETE" });
-    router.refresh();
+    window.location.reload();
   }
 
   return (
@@ -144,7 +144,7 @@ function AddLinkDialog() {
         }),
       });
       setOpen(false);
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsSubmitting(false);
     }

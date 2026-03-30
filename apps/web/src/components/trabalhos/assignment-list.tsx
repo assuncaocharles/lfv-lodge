@@ -134,7 +134,7 @@ function CreateAssignmentDialog({ members }: { members: MemberOption[] }) {
         }),
       });
       setOpen(false);
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsSubmitting(false);
     }

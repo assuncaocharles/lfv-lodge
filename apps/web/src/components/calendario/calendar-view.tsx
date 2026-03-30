@@ -300,8 +300,7 @@ function ListView({
 
   async function handleDelete(id: string) {
     await fetch(`/api/eventos/${id}`, { method: "DELETE" });
-    await new Promise((r) => setTimeout(r, 500));
-    router.refresh();
+    window.location.reload();
   }
 
   if (events.length === 0) {
@@ -470,9 +469,7 @@ function EditEventDialog({ event }: { event: Event }) {
           grauMinimo: form.get("grauMinimo"),
         }),
       });
-      setOpen(false);
-      await new Promise((r) => setTimeout(r, 500));
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsSubmitting(false);
     }
@@ -607,9 +604,7 @@ function NewEventDialog() {
           grauMinimo: form.get("grauMinimo"),
         }),
       });
-      setOpen(false);
-      await new Promise((r) => setTimeout(r, 500));
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsSubmitting(false);
     }

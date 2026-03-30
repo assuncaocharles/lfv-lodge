@@ -37,7 +37,7 @@ export function AssignmentActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: newStatus }),
       });
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsPending(false);
     }
@@ -51,7 +51,7 @@ export function AssignmentActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ feedbackAdmin: feedback }),
       });
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsPending(false);
     }
@@ -134,7 +134,7 @@ function SubmitDialog({ assignmentId }: { assignmentId: string }) {
       });
 
       setOpen(false);
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsUploading(false);
     }

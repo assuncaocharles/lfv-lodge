@@ -64,8 +64,7 @@ export function FileExplorer({
 
   async function handleDelete(id: string) {
     await fetch(`/api/documentos/${id}`, { method: "DELETE" });
-    await new Promise((r) => setTimeout(r, 500));
-    router.refresh();
+    window.location.reload();
   }
 
   const folders = items.filter((i) => i.tipo === "folder");
@@ -286,8 +285,7 @@ function NewFolderDialog({
       });
       setOpen(false);
       setNome("");
-      await new Promise((r) => setTimeout(r, 500));
-      router.refresh();
+      window.location.reload();
     } finally {
       setIsSubmitting(false);
     }
@@ -404,7 +402,7 @@ function UploadDialog({
       setTimeout(() => {
         setOpen(false);
         resetState();
-        router.refresh();
+        window.location.reload();
       }, 800);
     } catch (err) {
       setStatus("error");

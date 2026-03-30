@@ -63,9 +63,7 @@ export function InviteDialog() {
       setGrau("1");
       setCargo("none");
       setRole("member");
-      // Wait for revalidation so the list shows the new member
-      await new Promise((r) => setTimeout(r, 500));
-      router.refresh();
+      window.location.reload();
     } catch (err) {
       setError(
         err instanceof Error
