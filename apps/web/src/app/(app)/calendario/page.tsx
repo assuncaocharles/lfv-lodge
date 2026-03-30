@@ -18,6 +18,7 @@ export default function CalendarioPage() {
   const { data: events, isLoading } = useFetch<any[]>(
     `/api/eventos?mes=${mesParam}`,
   );
+  const { data: feedData } = useFetch<{ feedUrl: string }>("/api/eventos/feed-url");
 
   if (isLoading || !events) {
     return (
@@ -52,7 +53,7 @@ export default function CalendarioPage() {
         year={year}
         month={month}
         isAdmin={member.isAdmin}
-        feedUrl=""
+        feedUrl={feedData?.feedUrl ?? ""}
       />
     </div>
   );
