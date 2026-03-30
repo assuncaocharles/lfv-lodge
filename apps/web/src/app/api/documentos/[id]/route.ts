@@ -20,7 +20,7 @@ export async function GET(
 
   if (doc.storageKey) {
     const downloadUrl = await generateDownloadUrl(doc.storageKey);
-    return NextResponse.json({ ...doc, downloadUrl });
+    return NextResponse.redirect(downloadUrl);
   }
 
   return NextResponse.json(doc);

@@ -389,17 +389,17 @@ function UploadDialog({
         headers: { "Content-Type": file.type },
       });
 
-      setOpen(false);
       setFile(null);
       await new Promise((r) => setTimeout(r, 500));
       router.refresh();
+      setOpen(false);
     } finally {
       setIsUploading(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={(v) => !isUploading && setOpen(v)}>
       <DialogTrigger asChild>
         <Button size="sm" className="rounded-xl transition-all duration-200">
           <Upload className="size-4 mr-1.5" /> Upload
