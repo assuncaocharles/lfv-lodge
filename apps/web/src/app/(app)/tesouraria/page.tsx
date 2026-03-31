@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { useMember } from "@/hooks/use-member";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
@@ -41,7 +40,6 @@ interface ResumoData {
 }
 
 export default function TesourariaPage() {
-  const router = useRouter();
   const { member } = useMember();
   const [caixa, setCaixa] = useState<Caixa>("loja");
   const [mes, setMes] = useState(getCurrentMonth);
@@ -149,98 +147,98 @@ export default function TesourariaPage() {
 
   const isLoading = loadingLanc || loadingResumo;
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6 animate-fade-up">
-        <div className="animate-pulse space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[...Array(4)].map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl shadow-card h-20" />
-            ))}
-          </div>
-          <div className="bg-white rounded-2xl shadow-card h-12" />
-          <div className="bg-white rounded-2xl shadow-card h-64" />
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="space-y-6 animate-fade-up">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-neutral-900 tracking-tight dark:text-white">
-            Tesouraria
-          </h1>
-          <p className="text-[13px] text-neutral-500 mt-1">
-            Controle financeiro da loja
-          </p>
+    <>
+      {isLoading ? (
+        <div className="space-y-6 animate-fade-up">
+          <div className="animate-pulse space-y-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="bg-white rounded-2xl shadow-card h-20" />
+              ))}
+            </div>
+            <div className="bg-white rounded-2xl shadow-card h-12" />
+            <div className="bg-white rounded-2xl shadow-card h-64" />
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <ExportButton caixa={caixa} mes={mes} />
-          <LancamentoFormTrigger
-            onClick={() => {
-              setEditData(null);
-              setFormOpen(true);
-            }}
-          />
-        </div>
-      </div>
+      ) : (
+        <div className="space-y-6 animate-fade-up">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h1 className="font-display text-2xl font-bold text-neutral-900 tracking-tight dark:text-white">
+                Tesouraria
+              </h1>
+              <p className="text-[13px] text-neutral-500 mt-1">
+                Controle financeiro da loja
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <ExportButton caixa={caixa} mes={mes} />
+              <LancamentoFormTrigger
+                onClick={() => {
+                  setEditData(null);
+                  setFormOpen(true);
+                }}
+              />
+            </div>
+          </div>
 
-      {/* Saldo Cards */}
-      {resumo && (
-        <SaldoCard
-          saldoAnterior={resumo.saldoAnterior}
-          totalCreditos={resumo.totalCreditos}
-          totalDebitos={resumo.totalDebitos}
-          saldoAtual={resumo.saldoAtual}
-        />
+          {/* Saldo Cards */}
+          {resumo && (
+            <SaldoCard
+              saldoAnterior={resumo.saldoAnterior}
+              totalCreditos={resumo.totalCreditos}
+              totalDebitos={resumo.totalDebitos}
+              saldoAtual={resumo.saldoAtual}
+            />
+          )}
+
+          {/* Caixa Toggle + Month Navigator */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex rounded-xl bg-neutral-100 dark:bg-white/5 p-1">
+              {(["loja", "hospitalaria", "mensalidades"] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCaixa(c)}
+                  className={cn(
+                    "rounded-lg px-3.5 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-200",
+                    caixa === c
+                      ? "bg-white text-neutral-900 shadow-sm dark:bg-white/10 dark:text-white"
+                      : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400",
+                  )}
+                >
+                  {CAIXA_LABELS[c]}
+                </button>
+              ))}
+            </div>
+            <MesNavigator mes={mes} onChange={setMes} />
+          </div>
+
+          {/* Content */}
+          <div className="space-y-6">
+            {/* Mensalidades status grid */}
+            {caixa === "mensalidades" && mensalidadesStatus && (
+              <MensalidadesStatus
+                status={mensalidadesStatus}
+                onRegistrar={handleRegistrarMensalidade}
+              />
+            )}
+
+            {/* Lancamentos table */}
+            <LancamentosTable
+              lancamentos={lancamentos ?? []}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+            />
+
+            {/* Resumo */}
+            {resumo && <ResumoFinanceiro resumo={resumo.resumo} />}
+          </div>
+        </div>
       )}
 
-      {/* Caixa Toggle + Month Navigator */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex rounded-xl bg-neutral-100 dark:bg-white/5 p-1">
-          {(["loja", "hospitalaria", "mensalidades"] as const).map((c) => (
-            <button
-              key={c}
-              onClick={() => setCaixa(c)}
-              className={cn(
-                "rounded-lg px-3.5 py-1.5 text-[13px] font-medium cursor-pointer transition-all duration-200",
-                caixa === c
-                  ? "bg-white text-neutral-900 shadow-sm dark:bg-white/10 dark:text-white"
-                  : "text-neutral-500 hover:text-neutral-700 dark:text-neutral-400",
-              )}
-            >
-              {CAIXA_LABELS[c]}
-            </button>
-          ))}
-        </div>
-        <MesNavigator mes={mes} onChange={setMes} />
-      </div>
-
-      {/* Content */}
-      <div className="space-y-6">
-        {/* Mensalidades status grid */}
-        {caixa === "mensalidades" && mensalidadesStatus && (
-          <MensalidadesStatus
-            status={mensalidadesStatus}
-            onRegistrar={handleRegistrarMensalidade}
-          />
-        )}
-
-        {/* Lancamentos table */}
-        <LancamentosTable
-          lancamentos={lancamentos ?? []}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-        />
-
-        {/* Resumo */}
-        {resumo && <ResumoFinanceiro resumo={resumo.resumo} />}
-      </div>
-
-      {/* Form Dialog */}
+      {/* Form Dialog — always mounted so it's never destroyed by loading state */}
       <LancamentoForm
         caixa={caixa}
         membros={membrosForForm}
@@ -252,6 +250,6 @@ export default function TesourariaPage() {
         }}
         onSubmit={handleSubmit}
       />
-    </div>
+    </>
   );
 }
