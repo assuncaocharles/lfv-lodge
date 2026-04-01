@@ -49,6 +49,7 @@ export default function CalendarioPage() {
         </p>
       </div>
       <CalendarView
+        key={mesParam}
         events={events}
         year={year}
         month={month}
